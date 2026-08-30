@@ -1,0 +1,20 @@
+services:
+  artifacts:
+    build: .
+    image: artifacts:latest
+    ports:
+      - "${PORT:-8080}:8080"
+    environment:
+      DATA_DIR: /data
+      BIND_ADDR: 0.0.0.0:8080
+      # Must match the URL browsers use to reach this service — it is what
+      # view_uri is built from.
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://localhost:8080}
+      MAX_BODY_BYTES: ${MAX_BODY_BYTES:-10485760}
+      RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      - artifacts-data:/data
+    restart: unless-stopped
+
+volumes:
+  artifacts-data:
