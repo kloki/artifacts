@@ -34,6 +34,7 @@ pub fn app(state: Arc<AppState>) -> Router {
 
     Router::new()
         .nest("/api", api)
+        .route("/", get(handlers::dashboard))
         .route("/a/{id}", get(handlers::view_artifact))
         .route("/healthz", get(|| async { "ok" }))
         .layer(TraceLayer::new_for_http())

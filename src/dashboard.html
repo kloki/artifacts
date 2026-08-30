@@ -1,0 +1,971 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Artifacts</title>
+    <style>
+      :root {
+        /* Surfaces — layered from ground up */
+        --bg: #0a0a0a;
+        --surface: #121212;
+        --surface-raised: #181818;
+        --border: #262626;
+        --border-strong: #3a3a3a;
+
+        /* Text — three levels, no more */
+        --text: #ededed;
+        --text-muted: #a1a1a1;
+        --text-faint: #6e6e6e;
+
+        /* One accent, used sparingly */
+        --accent: #7dd3a8;
+        --accent-dim: #2f5c47;
+
+        /* Status */
+        --danger: #f87171;
+        --warning: #fbbf24;
+
+        --font-sans:
+          ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        --font-mono:
+          ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo,
+          Consolas, monospace;
+
+        /* 4px scale */
+        --space-1: 0.25rem;
+        --space-2: 0.5rem;
+        --space-3: 0.75rem;
+        --space-4: 1rem;
+        --space-6: 1.5rem;
+        --space-8: 2rem;
+        --space-12: 3rem;
+        --space-16: 4rem;
+
+        --radius: 4px;
+        --radius-lg: 8px;
+        --measure: 68ch;
+      }
+
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: #fafafa;
+          --surface: #ffffff;
+          --surface-raised: #f4f4f4;
+          --border: #e4e4e4;
+          --border-strong: #d4d4d4;
+          --text: #171717;
+          --text-muted: #525252;
+          --text-faint: #8a8a8a;
+          --accent: #1f7a56;
+          --accent-dim: #b8e2cd;
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--font-sans);
+        line-height: 1.65;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      .page {
+        max-width: 72rem;
+        margin-inline: auto;
+        padding: var(--space-8) var(--space-6);
+      }
+
+      .page-header {
+        margin-bottom: var(--space-8);
+      }
+
+      .eyebrow {
+        margin: 0 0 var(--space-2);
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--accent);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 2.25rem;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+      }
+
+      .lede {
+        max-width: var(--measure);
+        margin-top: var(--space-4);
+        color: var(--text-muted);
+      }
+
+      /* — Stat strip ————————————————————————————————— */
+
+      .stats {
+        display: flex;
+        flex-wrap: wrap;
+        margin: 0 0 var(--space-8);
+        padding: 0;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: var(--surface);
+        list-style: none;
+      }
+
+      .stat {
+        flex: 1 1 10rem;
+        padding: var(--space-4) var(--space-6);
+        border-left: 1px solid var(--border);
+      }
+
+      .stat:first-child {
+        border-left: 0;
+      }
+
+      .stat-label {
+        display: block;
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-faint);
+      }
+
+      .stat-value {
+        display: block;
+        margin-top: var(--space-1);
+        font-family: var(--font-mono);
+        font-size: 1.25rem;
+        color: var(--text);
+      }
+
+      /* — Toolbar ———————————————————————————————————— */
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-3);
+        align-items: center;
+        margin-bottom: var(--space-4);
+      }
+
+      .search {
+        flex: 1 1 18rem;
+        min-width: 0;
+        padding: var(--space-2) var(--space-3);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        background: var(--surface);
+        color: var(--text);
+        font-family: var(--font-mono);
+        font-size: 0.875rem;
+        transition: border-color 150ms ease;
+      }
+
+      .search::placeholder {
+        color: var(--text-faint);
+      }
+
+      .search:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
+      button {
+        font-family: var(--font-mono);
+        font-size: 0.8125rem;
+        cursor: pointer;
+      }
+
+      .btn {
+        padding: var(--space-2) var(--space-4);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        background: transparent;
+        color: var(--text);
+        transition:
+          border-color 150ms ease,
+          background 150ms ease;
+      }
+
+      .btn:hover {
+        border-color: var(--accent);
+      }
+
+      .btn-primary {
+        border-color: var(--accent);
+        background: var(--accent);
+        color: var(--bg);
+        font-weight: 500;
+      }
+
+      .btn-danger {
+        border-color: var(--danger);
+        background: var(--danger);
+        color: var(--bg);
+        font-weight: 500;
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+
+      .status {
+        min-height: 1.5rem;
+        margin: 0 0 var(--space-4);
+        font-family: var(--font-mono);
+        font-size: 0.8125rem;
+        color: var(--text-muted);
+      }
+
+      /* — Table —————————————————————————————————————— */
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9375rem;
+      }
+
+      thead th {
+        padding: var(--space-2) var(--space-3);
+        border-bottom: 1px solid var(--border);
+        font-family: var(--font-mono);
+        font-size: 0.75rem;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--text-faint);
+        text-align: left;
+        white-space: nowrap;
+      }
+
+      tbody td {
+        padding: var(--space-3);
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+
+      tbody tr:hover td {
+        background: var(--surface);
+      }
+
+      .num {
+        font-family: var(--font-mono);
+        font-size: 0.875rem;
+        text-align: right;
+        white-space: nowrap;
+      }
+
+      .mono {
+        font-family: var(--font-mono);
+        font-size: 0.875rem;
+        white-space: nowrap;
+      }
+
+      .title {
+        min-width: 14rem;
+      }
+
+      .title-text {
+        color: var(--text);
+      }
+
+      .title-untitled {
+        color: var(--text-faint);
+        font-style: italic;
+      }
+
+      .title-desc {
+        margin-top: var(--space-1);
+        max-width: var(--measure);
+        font-size: 0.875rem;
+        color: var(--text-muted);
+      }
+
+      .id {
+        color: var(--text-faint);
+      }
+
+      .updated {
+        color: var(--text-muted);
+      }
+
+      .actions {
+        white-space: nowrap;
+      }
+
+      .link {
+        display: inline-block;
+        padding: var(--space-1) var(--space-2);
+        border: 0;
+        background: none;
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.8125rem;
+        text-decoration: none;
+        border-radius: var(--radius);
+        transition: color 150ms ease;
+      }
+
+      .link:hover {
+        color: var(--accent);
+      }
+
+      .link-danger:hover {
+        color: var(--danger);
+      }
+
+      .sep {
+        color: var(--text-faint);
+      }
+
+      /* — Version history ————————————————————————————— */
+
+      .versions-row td {
+        padding-top: 0;
+        background: var(--surface);
+      }
+
+      .versions {
+        margin: 0;
+        padding: var(--space-3) 0 var(--space-1);
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: var(--space-2);
+      }
+
+      .versions a {
+        display: inline-block;
+        padding: var(--space-1) var(--space-3);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius);
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.8125rem;
+        text-decoration: none;
+        transition:
+          border-color 150ms ease,
+          color 150ms ease;
+      }
+
+      .versions a:hover {
+        border-color: var(--accent);
+        color: var(--accent);
+      }
+
+      .versions a.current {
+        border-color: var(--accent-dim);
+        color: var(--accent);
+      }
+
+      /* — Empty and error states —————————————————————— */
+
+      .empty,
+      .error {
+        margin-top: var(--space-8);
+        padding: var(--space-6);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        background: var(--surface);
+      }
+
+      .error {
+        border-color: var(--danger);
+      }
+
+      .empty p,
+      .error p {
+        margin: 0 0 var(--space-4);
+        max-width: var(--measure);
+        color: var(--text-muted);
+      }
+
+      .empty p:last-child,
+      .error p:last-child {
+        margin-bottom: 0;
+      }
+
+      pre {
+        margin: 0;
+        padding: var(--space-4);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--bg);
+        color: var(--text-muted);
+        font-family: var(--font-mono);
+        font-size: 0.8125rem;
+        line-height: 1.6;
+        overflow-x: auto;
+      }
+
+      /* — Delete dialog ——————————————————————————————— */
+
+      dialog {
+        max-width: 32rem;
+        padding: var(--space-6);
+        border: 1px solid var(--border-strong);
+        border-radius: var(--radius-lg);
+        background: var(--surface);
+        color: var(--text);
+      }
+
+      dialog::backdrop {
+        background: rgb(0 0 0 / 60%);
+      }
+
+      dialog h2 {
+        margin: 0 0 var(--space-4);
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+
+      dialog p {
+        margin: 0 0 var(--space-4);
+        color: var(--text-muted);
+      }
+
+      .dialog-target {
+        font-family: var(--font-mono);
+        font-size: 0.875rem;
+        color: var(--text);
+        word-break: break-all;
+      }
+
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: var(--space-3);
+        margin-top: var(--space-6);
+      }
+
+      .load-more {
+        margin-top: var(--space-6);
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      @media (max-width: 40rem) {
+        .page {
+          padding: var(--space-6) var(--space-4);
+        }
+
+        .col-id,
+        .col-size {
+          display: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <header class="page-header">
+        <p class="eyebrow">Artifacts</p>
+        <h1>Published artifacts</h1>
+        <p class="lede">
+          Every page this service hosts. Open one, copy its shareable link, walk
+          its version history, or delete it along with every version.
+        </p>
+      </header>
+
+      <ul class="stats">
+        <li class="stat">
+          <span class="stat-label">Artifacts</span>
+          <span class="stat-value" id="stat-count">—</span>
+        </li>
+        <li class="stat">
+          <span class="stat-label">Total size</span>
+          <span class="stat-value" id="stat-size">—</span>
+        </li>
+        <li class="stat">
+          <span class="stat-label">Last updated</span>
+          <span class="stat-value" id="stat-updated">—</span>
+        </li>
+      </ul>
+
+      <div class="toolbar">
+        <input
+          class="search"
+          id="search"
+          type="search"
+          placeholder="filter by title, description or id"
+          aria-label="Filter artifacts"
+          autocomplete="off"
+        />
+        <button class="btn" id="refresh" type="button">refresh</button>
+      </div>
+
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+
+      <div class="table-wrap" id="table-wrap" hidden>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Title</th>
+              <th scope="col" class="col-id">ID</th>
+              <th scope="col" class="num">Ver</th>
+              <th scope="col" class="num col-size">Size</th>
+              <th scope="col">Updated</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+
+      <button class="btn load-more" id="load-more" type="button" hidden>
+        load more
+      </button>
+
+      <section class="empty" id="empty" hidden>
+        <p>Nothing published yet. Send an HTML file as the raw request body:</p>
+        <pre>$ curl -sS -X POST -H 'Content-Type: text/html' \
+    --data-binary @page.html \
+    "<span id="empty-origin"></span>/api/artifacts?title=My%20Page"</pre>
+      </section>
+
+      <section class="error" id="error" hidden>
+        <p id="error-message"></p>
+        <button class="btn" id="retry" type="button">retry</button>
+      </section>
+    </main>
+
+    <dialog id="confirm-delete">
+      <h2>Delete this artifact?</h2>
+      <p>
+        This removes the artifact and every superseded version from disk. The
+        link stops working immediately. It cannot be undone.
+      </p>
+      <p class="dialog-target" id="confirm-target"></p>
+      <div class="dialog-actions">
+        <button class="btn" id="cancel-delete" type="button">cancel</button>
+        <button class="btn btn-danger" id="do-delete" type="button">
+          delete
+        </button>
+      </div>
+    </dialog>
+
+    <script>
+      "use strict";
+
+      const PAGE_SIZE = 200;
+
+      const el = {
+        rows: document.getElementById("rows"),
+        tableWrap: document.getElementById("table-wrap"),
+        search: document.getElementById("search"),
+        refresh: document.getElementById("refresh"),
+        status: document.getElementById("status"),
+        loadMore: document.getElementById("load-more"),
+        empty: document.getElementById("empty"),
+        emptyOrigin: document.getElementById("empty-origin"),
+        error: document.getElementById("error"),
+        errorMessage: document.getElementById("error-message"),
+        retry: document.getElementById("retry"),
+        statCount: document.getElementById("stat-count"),
+        statSize: document.getElementById("stat-size"),
+        statUpdated: document.getElementById("stat-updated"),
+        dialog: document.getElementById("confirm-delete"),
+        dialogTarget: document.getElementById("confirm-target"),
+        cancelDelete: document.getElementById("cancel-delete"),
+        doDelete: document.getElementById("do-delete"),
+      };
+
+      /** Every artifact loaded so far, newest first — the server sorts. */
+      let items = [];
+      /** Total the server reports, which may exceed what we have loaded. */
+      let total = 0;
+      /** IDs whose version list is expanded. */
+      const expanded = new Set();
+      /** The artifact the delete dialog is currently asking about. */
+      let pendingDelete = null;
+
+      el.emptyOrigin.textContent = window.location.origin;
+
+      /* — Formatting ——————————————————————————————————— */
+
+      function formatBytes(bytes) {
+        if (!Number.isFinite(bytes)) return "—";
+        if (bytes < 1024) return bytes + " B";
+        const units = ["KB", "MB", "GB"];
+        let value = bytes / 1024;
+        let unit = 0;
+        while (value >= 1024 && unit < units.length - 1) {
+          value /= 1024;
+          unit += 1;
+        }
+        return (value < 10 ? value.toFixed(1) : Math.round(value)) + " " + units[unit];
+      }
+
+      const relative = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+      const UNITS = [
+        ["year", 31536000],
+        ["month", 2592000],
+        ["day", 86400],
+        ["hour", 3600],
+        ["minute", 60],
+      ];
+
+      function formatRelative(iso) {
+        const then = Date.parse(iso);
+        if (Number.isNaN(then)) return "—";
+        const seconds = (then - Date.now()) / 1000;
+        for (const [unit, size] of UNITS) {
+          if (Math.abs(seconds) >= size) {
+            return relative.format(Math.round(seconds / size), unit);
+          }
+        }
+        return relative.format(Math.round(seconds), "second");
+      }
+
+      /* — Rendering ———————————————————————————————————— */
+
+      function button(label, className, action, id) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "link " + className;
+        b.textContent = label;
+        b.dataset.action = action;
+        b.dataset.id = id;
+        return b;
+      }
+
+      function separator() {
+        const s = document.createElement("span");
+        s.className = "sep";
+        s.textContent = "·";
+        return s;
+      }
+
+      function titleCell(item) {
+        const td = document.createElement("td");
+        td.className = "title";
+
+        const name = document.createElement("div");
+        // `title` is omitted from the JSON entirely when unset, not null.
+        if (item.title) {
+          name.className = "title-text";
+          name.textContent = item.title;
+        } else {
+          name.className = "title-untitled";
+          name.textContent = "untitled";
+        }
+        td.append(name);
+
+        if (item.description) {
+          const desc = document.createElement("div");
+          desc.className = "title-desc";
+          desc.textContent = item.description;
+          td.append(desc);
+        }
+        return td;
+      }
+
+      function versionCell(item) {
+        const td = document.createElement("td");
+        td.className = "num";
+        if (item.version > 1) {
+          const b = button("v" + item.version, "", "versions", item.id);
+          b.setAttribute("aria-expanded", String(expanded.has(item.id)));
+          b.title = "Show version history";
+          td.append(b);
+        } else {
+          td.textContent = "v1";
+        }
+        return td;
+      }
+
+      function actionsCell(item) {
+        const td = document.createElement("td");
+        td.className = "actions";
+
+        // Relative path, so opening works from whatever origin served this
+        // page — `view_uri` follows PUBLIC_BASE_URL and may point elsewhere.
+        const open = document.createElement("a");
+        open.className = "link";
+        open.href = "/a/" + encodeURIComponent(item.id);
+        open.target = "_blank";
+        open.rel = "noopener";
+        open.textContent = "open";
+
+        td.append(
+          open,
+          separator(),
+          button("copy link", "", "copy", item.id),
+          separator(),
+          button("delete", "link-danger", "delete", item.id),
+        );
+        return td;
+      }
+
+      function row(item) {
+        const tr = document.createElement("tr");
+        tr.dataset.id = item.id;
+
+        const id = document.createElement("td");
+        id.className = "mono id col-id";
+        id.textContent = item.id.slice(0, 8);
+        id.title = item.id;
+
+        const size = document.createElement("td");
+        size.className = "num col-size";
+        size.textContent = formatBytes(item.size_bytes);
+
+        const updated = document.createElement("td");
+        updated.className = "mono updated";
+        updated.textContent = formatRelative(item.updated_at);
+        updated.title = item.updated_at;
+
+        tr.append(titleCell(item), id, versionCell(item), size, updated, actionsCell(item));
+        return tr;
+      }
+
+      /**
+       * Versions are derived from `version` alone: every 1..N is addressable at
+       * `/a/{id}?version=N`, but nothing records when each was published.
+       */
+      function versionsRow(item) {
+        const tr = document.createElement("tr");
+        tr.className = "versions-row";
+        const td = document.createElement("td");
+        td.colSpan = 6;
+
+        const list = document.createElement("ul");
+        list.className = "versions";
+        for (let v = item.version; v >= 1; v--) {
+          const li = document.createElement("li");
+          const a = document.createElement("a");
+          a.href = "/a/" + encodeURIComponent(item.id) + "?version=" + v;
+          a.target = "_blank";
+          a.rel = "noopener";
+          a.textContent = v === item.version ? "v" + v + " current" : "v" + v;
+          if (v === item.version) a.className = "current";
+          li.append(a);
+          list.append(li);
+        }
+
+        td.append(list);
+        tr.append(td);
+        return tr;
+      }
+
+      function matches(item, query) {
+        if (!query) return true;
+        const haystack = [item.title || "", item.description || "", item.id]
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(query);
+      }
+
+      function render() {
+        const query = el.search.value.trim().toLowerCase();
+        const visible = items.filter((item) => matches(item, query));
+
+        el.rows.replaceChildren();
+        for (const item of visible) {
+          el.rows.append(row(item));
+          if (expanded.has(item.id)) el.rows.append(versionsRow(item));
+        }
+
+        el.tableWrap.hidden = visible.length === 0;
+        el.empty.hidden = !(items.length === 0 && !query);
+        el.loadMore.hidden = items.length >= total || Boolean(query);
+
+        if (visible.length === 0 && items.length > 0) {
+          setStatus("No artifact matches " + JSON.stringify(query) + ".");
+        } else if (query) {
+          setStatus(visible.length + " of " + items.length + " shown.");
+        } else if (items.length > 0) {
+          setStatus("Showing " + items.length + " of " + total + ".");
+        } else {
+          setStatus("");
+        }
+
+        renderStats();
+      }
+
+      function renderStats() {
+        el.statCount.textContent = String(total);
+        const bytes = items.reduce((sum, item) => sum + (item.size_bytes || 0), 0);
+        // Only what we have loaded contributes, so say so when paging.
+        el.statSize.textContent =
+          items.length < total ? formatBytes(bytes) + "+" : formatBytes(bytes);
+        el.statUpdated.textContent = items.length ? formatRelative(items[0].updated_at) : "—";
+      }
+
+      function setStatus(text) {
+        el.status.textContent = text;
+      }
+
+      /* — Data ————————————————————————————————————————— */
+
+      async function apiError(response) {
+        try {
+          const body = await response.json();
+          if (body && body.message) return body.message;
+        } catch {
+          /* Not JSON — fall through to the status line. */
+        }
+        return "HTTP " + response.status + " " + response.statusText;
+      }
+
+      function showError(message) {
+        el.errorMessage.textContent = message;
+        el.error.hidden = false;
+      }
+
+      async function load({ append = false } = {}) {
+        const offset = append ? items.length : 0;
+        el.error.hidden = true;
+        setStatus("Loading…");
+
+        try {
+          const response = await fetch(
+            "/api/artifacts?limit=" + PAGE_SIZE + "&offset=" + offset,
+            { headers: { Accept: "application/json" } },
+          );
+          if (!response.ok) throw new Error(await apiError(response));
+
+          const body = await response.json();
+          items = append ? items.concat(body.items) : body.items;
+          total = body.total;
+          if (!append) expanded.clear();
+          render();
+        } catch (error) {
+          setStatus("");
+          showError("Could not load artifacts: " + error.message);
+        }
+      }
+
+      async function remove(item) {
+        setStatus("Deleting…");
+        try {
+          const response = await fetch("/api/artifacts/" + encodeURIComponent(item.id), {
+            method: "DELETE",
+          });
+          if (!response.ok) throw new Error(await apiError(response));
+
+          items = items.filter((candidate) => candidate.id !== item.id);
+          expanded.delete(item.id);
+          total = Math.max(0, total - 1);
+          render();
+          setStatus("Deleted " + item.id + ".");
+        } catch (error) {
+          setStatus("");
+          showError("Could not delete " + item.id + ": " + error.message);
+        }
+      }
+
+      /**
+       * `navigator.clipboard` only exists in a secure context, and this service
+       * is routinely reached over plain http on a LAN. Fall back to a hidden
+       * textarea, then to selecting the text so it can be copied by hand.
+       */
+      async function copy(text) {
+        if (navigator.clipboard && window.isSecureContext) {
+          try {
+            await navigator.clipboard.writeText(text);
+            setStatus("Copied " + text);
+            return;
+          } catch {
+            /* Fall through to the legacy path. */
+          }
+        }
+
+        const scratch = document.createElement("textarea");
+        scratch.value = text;
+        scratch.setAttribute("readonly", "");
+        scratch.style.position = "fixed";
+        scratch.style.opacity = "0";
+        document.body.append(scratch);
+        scratch.select();
+        let copied = false;
+        try {
+          copied = document.execCommand("copy");
+        } catch {
+          copied = false;
+        }
+        scratch.remove();
+
+        setStatus(copied ? "Copied " + text : "Could not copy — the link is " + text);
+      }
+
+      /* — Events ——————————————————————————————————————— */
+
+      el.rows.addEventListener("click", (event) => {
+        const target = event.target.closest("button[data-action]");
+        if (!target) return;
+
+        const item = items.find((candidate) => candidate.id === target.dataset.id);
+        if (!item) return;
+
+        if (target.dataset.action === "copy") {
+          // The shareable link, built from PUBLIC_BASE_URL by the server.
+          copy(item.view_uri);
+        } else if (target.dataset.action === "versions") {
+          if (expanded.has(item.id)) expanded.delete(item.id);
+          else expanded.add(item.id);
+          render();
+        } else if (target.dataset.action === "delete") {
+          pendingDelete = item;
+          el.dialogTarget.textContent = (item.title || "untitled") + " — " + item.id;
+          el.dialog.showModal();
+        }
+      });
+
+      el.doDelete.addEventListener("click", () => {
+        const item = pendingDelete;
+        pendingDelete = null;
+        el.dialog.close();
+        if (item) remove(item);
+      });
+
+      el.cancelDelete.addEventListener("click", () => {
+        pendingDelete = null;
+        el.dialog.close();
+      });
+
+      el.search.addEventListener("input", render);
+      el.refresh.addEventListener("click", () => load());
+      el.retry.addEventListener("click", () => load());
+      el.loadMore.addEventListener("click", () => load({ append: true }));
+
+      load();
+    </script>
+  </body>
+</html>
