@@ -22,6 +22,10 @@ curl -sS -X POST -H 'Content-Type: text/html' \
 
 The response contains a `view_uri` — open it in a browser.
 
+Open the service root (`http://localhost:8080/`) for the dashboard: every
+artifact in one table, with its version history, a copy button for its shareable
+link, and delete.
+
 To run without Docker: `cargo run` (listens on `:8080`, stores under `./data`).
 
 ## Configuration
@@ -55,6 +59,7 @@ Metadata travels in query parameters.
 | GET    | `/api/artifacts`      | List, newest first        | 200     |
 | DELETE | `/api/artifacts/{id}` | Delete, including history | 204     |
 | GET    | `/a/{id}[?version=N]` | Public view               | 200     |
+| GET    | `/`                   | Management dashboard      | 200     |
 | GET    | `/healthz`            | Health check              | 200     |
 
 Query parameters: `title` and `description` on create/update (on update, only
@@ -81,6 +86,29 @@ Errors are `{"error": "<code>", "message": "<detail>"}` with status 400
 (empty body, malformed UUID), 404 (unknown artifact or version), or 413
 (body over `MAX_BODY_BYTES`).
 
+## Dashboard
+
+`GET /` serves a management dashboard: a single self-contained HTML page,
+embedded in the binary at compile time, listing every artifact with its title,
+description, id, version, size and last update. From it you can open an
+artifact, copy its shareable link, expand its version history to reach any
+earlier version, and delete it. A search box filters the loaded rows.
+
+It is a client of the same JSON API documented above and adds no endpoints of
+its own. Two details worth knowing:
+
+- **Open** uses the relative `/a/{id}`, so it works from whatever host you
+  loaded the dashboard from. **Copy link** copies `view_uri`, built from
+  `PUBLIC_BASE_URL` — the link to hand to someone else. Behind a proxy these
+  differ, which is the point.
+- Version history is derived from the current version number; every version
+  from 1 to N is addressable, but nothing records when each was published, so
+  the list shows version numbers only.
+
+Editing a title or description is deliberately not offered — `PUT` requires the
+HTML body and would bump the version, so renaming would need a metadata-only
+endpoint that does not exist.
+
 ## Storage
 
 One directory per artifact, no database:
@@ -101,6 +129,10 @@ never leaves a partial artifact visible. Back up by copying `$DATA_DIR`.
 The API is **unauthenticated by design** — it is meant to run on a trusted
 network or behind a reverse proxy that handles access control. Anyone who can
 reach it can create, overwrite, and delete artifacts.
+
+The dashboard at `/` grants no capability the API did not already, but it does
+put delete one click away in a browser. If that matters, keep `/` and `/api/*`
+behind the proxy's access control and expose only `/a/*`, as below.
 
 Artifacts are served verbatim with no Content-Security-Policy, because they are
 intentionally arbitrary HTML with inline scripts. Consequently artifact
@@ -129,7 +161,8 @@ guide:
 | `artifact-service`        | Publishing to this service and sharing the link.               |
 
 `skills/STYLE_GUIDE.md` defines the shared dark, terminal-leaning aesthetic both
-builders follow.
+builders follow — and that the dashboard is built in, so the service looks like
+the artifacts it hosts.
 
 `web-artifacts-builder` is adapted from
 [anthropics/skills](https://github.com/anthropics/skills) and remains under the

@@ -266,3 +266,21 @@ async fn healthz_reports_ok() {
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body, b"ok");
 }
+
+#[tokio::test]
+async fn root_serves_the_dashboard() {
+    let dir = TempDir::new().unwrap();
+    let app = test_app(&dir);
+
+    let res = app.oneshot(get("/")).await.unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    assert_eq!(
+        res.headers()[axum::http::header::CONTENT_TYPE],
+        "text/html; charset=utf-8"
+    );
+
+    let body = res.into_body().collect().await.unwrap().to_bytes();
+    let html = std::str::from_utf8(&body).unwrap();
+    assert!(html.contains("<title>Artifacts</title>"));
+    assert!(html.contains("/api/artifacts"));
+}

@@ -127,3 +127,16 @@ pub async fn view_artifact(
     )
         .into_response())
 }
+
+/// The management dashboard. Embedded at compile time so the binary stays
+/// self-contained — there is no static directory to ship or mount alongside it.
+pub async fn dashboard() -> Response {
+    (
+        [
+            (header::CONTENT_TYPE, "text/html; charset=utf-8"),
+            (header::CACHE_CONTROL, "no-cache"),
+        ],
+        include_str!("dashboard.html"),
+    )
+        .into_response()
+}
