@@ -1,33 +1,42 @@
 # Artifact Style Guide
 
 A shared visual language for artifacts built with the `simple-artifact-builder`
-and `web-artifacts-builder` skills. The target aesthetic is a **modern developer
-terminal**: dark, quiet, text-forward, with monospace used as a deliberate
-accent rather than decoration.
+and `web-artifacts-builder` skills. The target aesthetic is **Bauhaus-inspired
+and phone-first**: paper and ink, bold geometric type, saturated primary
+accents, and composition built for a 375px column before anything wider.
 
 Follow this guide unless the user asks for something specific. If they do, their
 request wins.
 
 ## Principles
 
-1. **Dark by default.** Near-black ground, off-white text, one accent color.
-2. **Text is the interface.** Typography and spacing carry the design; borders
-   and color do the minimum needed to separate things.
-3. **Restraint over ornament.** No decoration that does not clarify structure.
-4. **Left-aligned and readable.** Content sits on a consistent left edge with a
-   measure of 65–75 characters. Center only isolated hero text.
+1. **Form follows function.** Nothing decorates that does not structure. If a
+   shape, rule, or color does not organize the page, remove it.
+2. **Paper and ink first.** A warm off-white ground, near-black ink, and type
+   carry the design. Primary color is earned, not sprayed.
+3. **Pure geometry.** Corners are sharp (`0`) or perfectly round (`9999px`) —
+   nothing in between. Squares, circles, and triangles are the only motifs.
+4. **One primary per page.** Red, blue, and yellow each have a job. One carries
+   the page's action; the others appear only as small marks, if at all.
+5. **Phone first.** Style the single 375px column, then use `min-width` queries
+   to add complexity upward. Every touch target clears 44px.
 
 ## Anti-patterns
 
-These read as generic AI output. Avoid them:
+These read as generic AI output or break the system. Avoid them:
 
 - Purple/violet gradient backgrounds or gradient headline text
-- Every element with the same large `border-radius` (the "pill soup" look)
+- Any gradient — the system is flat color on flat color
+- Every element with a soft default `border-radius` (the "pill soup" look)
 - Inter, or any font specified without a fallback stack
 - Everything centered, including body copy and cards
 - Emoji as section icons or bullets
-- Drop shadows on flat dark surfaces (they do nothing; use borders instead)
+- Drop shadows — depth comes from borders and value, never blur
 - Three-column "feature card" grids with an icon, bold word, and one grey line
+- Pastel or desaturated palettes — primaries stay saturated
+- Yellow as a text color — yellow is a background with ink text on it
+- Faux-Bauhaus clutter: geometric shapes crammed into every section. One motif
+  per page.
 
 ## Tokens
 
@@ -35,32 +44,28 @@ Paste this into your `<style>` block and build on top of it.
 
 ```css
 :root {
-  /* Surfaces — layered from ground up */
-  --bg: #0a0a0a;
-  --surface: #121212;
-  --surface-raised: #181818;
-  --border: #262626;
-  --border-strong: #3a3a3a;
+  /* Paper — layered from ground up */
+  --paper: #f4f1e8;
+  --paper-raised: #fbf9f3;
 
-  /* Text — three levels, no more */
-  --text: #ededed;
-  --text-muted: #a1a1a1;
-  --text-faint: #6e6e6e;
+  /* Ink — three levels, no more */
+  --ink: #1a1a1a;
+  --ink-muted: #57544a;
+  --ink-faint: #8a877b;
 
-  /* One accent, used sparingly */
-  --accent: #7dd3a8;
-  --accent-dim: #2f5c47;
+  /* Primaries — saturated, one role each */
+  --red: #c2332b;      /* the page's action */
+  --red-ink: #9e2a23;  /* hover/darker step */
+  --blue: #1f4fb8;     /* links, focus */
+  --yellow: #e8a80c;   /* background blocks only, ink text on top */
 
-  /* Status */
-  --danger: #f87171;
-  --warning: #fbbf24;
+  /* Rules */
+  --rule: #1a1a1a;       /* 2px structural rules and borders */
+  --rule-soft: #d8d4c6;  /* hairline row separators */
 
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
-    "Helvetica Neue", Arial, sans-serif;
-  --font-mono:
-    ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, Consolas,
-    monospace;
+    "Futura", "Avenir Next", "Century Gothic", "Segoe UI", system-ui,
+    Roboto, "Helvetica Neue", Arial, sans-serif;
 
   /* 4px scale */
   --space-1: 0.25rem;
@@ -72,96 +77,132 @@ Paste this into your `<style>` block and build on top of it.
   --space-12: 3rem;
   --space-16: 4rem;
 
-  --radius: 4px;
-  --radius-lg: 8px;
-  --measure: 68ch;
+  --radius: 0;
+  --radius-circle: 9999px;
 }
 ```
 
-### Light mode
+Notes:
 
-Optional. If you support it, swap only the tokens — never restate colors inline:
+- `--ink-faint` is for decorative text only (placeholders, watermarks) — never
+  for anything a reader must parse.
+- `--yellow` never appears as text and never on a light ground with light text.
+  It is a filled block with `--ink` text.
+- Numbers use `font-variant-numeric: tabular-nums` on the sans stack — no
+  monospace anywhere in the design voice.
+
+### Dark mode
+
+Optional. If you support it, swap only the tokens — never restate colors
+inline. Inverted paper, same primaries brightened for contrast:
 
 ```css
-@media (prefers-color-scheme: light) {
+@media (prefers-color-scheme: dark) {
   :root {
-    --bg: #fafafa;
-    --surface: #ffffff;
-    --surface-raised: #f4f4f4;
-    --border: #e4e4e4;
-    --border-strong: #d4d4d4;
-    --text: #171717;
-    --text-muted: #525252;
-    --text-faint: #8a8a8a;
-    --accent: #1f7a56;
-    --accent-dim: #b8e2cd;
+    --paper: #161511;
+    --paper-raised: #1e1d17;
+    --ink: #f2efe6;
+    --ink-muted: #b5b1a4;
+    --ink-faint: #7d7a6e;
+    --red: #e0524a;
+    --red-ink: #f07770;
+    --blue: #7d9de8;
+    --yellow: #f2c14e;
+    --rule: #f2efe6;
+    --rule-soft: #3a3931;
   }
 }
 ```
 
 ## Typography
 
-| Role                | Font | Size        | Weight | Notes                                 |
-| ------------------- | ---- | ----------- | ------ | ------------------------------------- |
-| Page title          | sans | 2–2.5rem    | 600    | `letter-spacing: -0.02em`             |
-| Section heading     | sans | 1.25–1.5rem | 600    | Generous space above, tight below     |
-| Body                | sans | 1rem        | 400    | `line-height: 1.65`, `--text`         |
-| Secondary body      | sans | 0.9375rem   | 400    | `--text-muted`                        |
-| Eyebrow / label     | mono | 0.75rem     | 500    | `uppercase`, `letter-spacing: 0.08em` |
-| Code, data, metrics | mono | 0.875rem    | 400    | Numbers in tables always monospace    |
+| Role            | Font | Size                        | Weight | Notes                                       |
+| --------------- | ---- | --------------------------- | ------ | ------------------------------------------- |
+| Display title   | sans | `clamp(2rem, 7vw, 3.25rem)` | 700    | `uppercase`, `line-height: 1.05`            |
+| Section heading | sans | `clamp(1.25rem, 3vw, 1.75rem)` | 700 | `uppercase`, generous space above, tight below |
+| Body            | sans | 1rem                        | 400    | `line-height: 1.6`, `--ink`                 |
+| Secondary body  | sans | 0.9375rem                   | 400    | `--ink-muted`                               |
+| Label           | sans | 0.8125rem                   | 700    | `uppercase`, `letter-spacing: 0.08em`       |
+| Numbers         | sans | inherit                     | 600    | `font-variant-numeric: tabular-nums`, right-aligned |
 
-Headings never get their own color or gradient — hierarchy comes from size,
-weight, and spacing. Monospace signals "machine-generated": labels, IDs,
-timestamps, code, and numeric columns. Prose stays sans-serif.
+Hierarchy comes from weight, case, size, and space — headings never get their
+own color. Uppercase is reserved for display type and labels; body copy stays
+sentence case.
+
+The one exception to the sans rule: if the page shows **code**, use the system
+mono stack for that content alone (`ui-monospace, Menlo, Consolas, monospace`).
+That is a functional requirement, not part of the design voice — never use mono
+for labels, eyebrows, or tables.
 
 ## Layout
 
-- Page container: `max-width: 72rem`, `margin-inline: auto`, `padding: var(--space-8) var(--space-6)`.
-- Prose blocks: cap at `var(--measure)`.
-- Vertical rhythm: `--space-16` between major sections, `--space-6` inside them.
-  Consistency matters more than the exact values.
-- Grids: `repeat(auto-fit, minmax(16rem, 1fr))` with `gap: var(--space-4)`.
-  Prefer two columns of substance over four of filler.
+- Base styles are the phone column: one column, no grid, no fixed widths.
+- Page container: `max-width: 68rem`, `margin-inline: auto`, modest padding
+  (`var(--space-6)` top, `var(--space-4)` inline) that grows at `48rem`.
+- Prose blocks: cap at ~35rem — long measures are unreadable on phones anyway.
+- Vertical rhythm: `--space-12` between major sections, `--space-6` inside
+  them. Consistency matters more than the exact values.
+- Grids only exist at `@media (min-width: 48rem)`:
+  `repeat(auto-fit, minmax(16rem, 1fr))`, `gap: var(--space-4)`. Prefer two
+  columns of substance over four of filler.
+
+## Built for phones first
+
+- **Fluid type**: `clamp()` on display sizes so headlines never overflow a
+  320px viewport and never balloon on desktop.
+- **Touch targets**: buttons and tappable controls are at least `min-height:
+  44px` with real padding — the iOS/Android minimum, comfortably met.
+- **Input font-size ≥ 16px**: prevents iOS Safari from auto-zooming on focus.
+- **Hover is optional**: wrap every `:hover` rule in
+  `@media (hover: hover)` so touch devices never get sticky hover states, and
+  never hide information behind hover only.
+- **Overflow is contained**: any wide element (table, code block, diagram)
+  scrolls inside its own `overflow-x: auto` container — the page body must
+  never scroll horizontally.
+- **Safe areas**: honor `env(safe-area-inset-*)` in page padding when content
+  runs to the edges.
+- Motion is limited to 120–200ms transitions on `border-color`, `background`,
+  and `opacity`. No entrance animations, parallax, or autoplaying motion.
+  Honor `prefers-reduced-motion: reduce` by disabling transitions.
 
 ## Components
 
-**Cards** — `background: var(--surface)`, `border: 1px solid var(--border)`,
-`border-radius: var(--radius-lg)`, `padding: var(--space-6)`. No shadow. On
-hover (only if interactive): `border-color: var(--border-strong)`.
+**Cards** — `background: var(--paper-raised)`, `border: 2px solid var(--rule)`,
+`border-radius: var(--radius)`, `padding: var(--space-6)`. No shadow, no hover
+state unless the card is itself a link or button.
 
-**Buttons** — Primary: `background: var(--accent)`, `color: var(--bg)`,
-`font-weight: 500`, `border-radius: var(--radius)`, `padding: var(--space-2) var(--space-4)`.
-Secondary: transparent with `1px solid var(--border-strong)` and `--text`.
-Always give a visible `:focus-visible` outline in `--accent`.
+**Buttons** — flat blocks, `text-transform: uppercase`, weight 700,
+`border-radius: var(--radius)`, `padding: var(--space-3) var(--space-5)`,
+`min-height: 44px`. Primary: `background: var(--red)`, color `var(--paper)`;
+hover `var(--red-ink)`. Secondary: transparent with `2px solid var(--rule)` and
+`--ink`; hover fills `--ink`/`--paper`. Always give a visible `:focus-visible`
+outline in `--blue`, `2px`, offset 2px.
 
-**Tables** — Header row in mono eyebrow style with a `--border` bottom rule.
-Row separators only, never a full grid. Right-align and monospace numbers.
+**Links** — `color: var(--blue)`, underlined in body copy. Inline text links
+get `padding: var(--space-2) 0` or equivalent so their tap area reaches 44px.
 
-**Code blocks** — `background: var(--surface)`, `border: 1px solid var(--border)`,
+**Tables** — header row in label style (uppercase, bold, small) with a
+`2px solid var(--rule)` bottom rule. Row separators are hairlines
+(`--rule-soft`) only, never a full grid. Right-align numbers with
+`font-variant-numeric: tabular-nums`. On phones the table scrolls inside an
+`overflow-x: auto` wrapper; hide non-essential columns under `40rem`.
+
+**Geometric marks** — the system's only decoration. Small filled squares,
+circles, and triangles (inline SVG or CSS) used as bullets, section markers, or
+one header motif. Saturated primaries on ink, or ink on primaries. One motif
+per page.
+
+**Code blocks** — if the page needs them: `background: var(--paper-raised)`,
+`border: 1px solid var(--rule-soft)`, mono stack for the code only,
 `padding: var(--space-4)`, `overflow-x: auto`. Never wrap code.
-
-**Terminal accents** — Used sparingly, one or two per page at most: a `$ ` or
-`>` prefix on a command line, an ASCII rule (`────────`) between major sections,
-or a blinking block cursor after a hero heading. Skip them entirely on
-data-heavy pages.
-
-## Responsiveness and motion
-
-Use fluid widths, `max-width: 100%` on media, and collapse multi-column grids to
-one column under ~40rem. Any wide element (table, code block, diagram) scrolls
-inside its own `overflow-x: auto` container — the page body must never scroll
-horizontally.
-
-Motion is limited to 120–200ms transitions on `border-color`, `background`,
-`opacity`, and `transform`. No entrance animations, parallax, or autoplaying
-motion. Honor `prefers-reduced-motion: reduce` by disabling transitions.
 
 ## Accessibility
 
 Body text must clear 4.5:1 contrast against its background (the tokens above
-do). Never signal state by color alone — pair it with text or an icon. Use real
-semantic elements (`<button>`, `<nav>`, `<table>`, one `<h1>` per page) so
-keyboard and screen-reader navigation works.
+do; `--ink-faint` is decorative only). Never signal state by color alone —
+pair it with text or a shape. Use real semantic elements (`<button>`,
+`<nav>`, `<table>`, one `<h1>` per page) so keyboard and screen-reader
+navigation works.
 
 ## Starter shell
 
@@ -169,7 +210,11 @@ keyboard and screen-reader navigation works.
 <body>
   <main class="page">
     <header class="page-header">
-      <p class="eyebrow">Section label</p>
+      <div class="motif" aria-hidden="true">
+        <span class="motif-square"></span>
+        <span class="motif-circle"></span>
+        <span class="motif-triangle"></span>
+      </div>
       <h1>Artifact title</h1>
       <p class="lede">One sentence on what this page shows.</p>
     </header>
@@ -184,38 +229,60 @@ keyboard and screen-reader navigation works.
 }
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
+  background: var(--paper);
+  color: var(--ink);
   font-family: var(--font-sans);
-  line-height: 1.65;
+  line-height: 1.6;
   -webkit-font-smoothing: antialiased;
 }
 .page {
-  max-width: 72rem;
+  max-width: 68rem;
   margin-inline: auto;
-  padding: var(--space-8) var(--space-6);
+  padding: var(--space-8) var(--space-4);
+}
+@media (min-width: 48rem) {
+  .page {
+    padding: var(--space-12) var(--space-6);
+  }
 }
 .page-header {
   margin-bottom: var(--space-12);
 }
-.eyebrow {
-  margin: 0 0 var(--space-2);
-  font-family: var(--font-mono);
-  font-size: 0.75rem;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--accent);
+.motif {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin-bottom: var(--space-4);
+}
+.motif-square {
+  width: 0.875rem;
+  height: 0.875rem;
+  background: var(--ink);
+}
+.motif-circle {
+  width: 0.875rem;
+  height: 0.875rem;
+  border-radius: var(--radius-circle);
+  background: var(--red);
+}
+.motif-triangle {
+  width: 0;
+  height: 0;
+  border-left: 0.5rem solid transparent;
+  border-right: 0.5rem solid transparent;
+  border-bottom: 0.875rem solid var(--blue);
 }
 h1 {
   margin: 0;
-  font-size: 2.25rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-size: clamp(2rem, 7vw, 3.25rem);
+  font-weight: 700;
+  line-height: 1.05;
+  text-transform: uppercase;
 }
 .lede {
-  max-width: var(--measure);
+  max-width: 35rem;
   margin-top: var(--space-4);
-  color: var(--text-muted);
+  font-size: 1.0625rem;
+  color: var(--ink-muted);
 }
 ```

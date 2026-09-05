@@ -160,8 +160,9 @@ guide:
 | `web-artifacts-builder`   | React + Tailwind + shadcn/ui artifacts bundled to one file.    |
 | `artifact-service`        | Publishing to this service and sharing the link.               |
 
-`skills/STYLE_GUIDE.md` defines the shared dark, terminal-leaning aesthetic both
-builders follow — and that the dashboard is built in, so the service looks like
+`skills/STYLE_GUIDE.md` defines the shared Bauhaus-inspired, phone-first
+aesthetic both builders follow — paper and ink, bold geometric type, saturated
+primary accents — and that the dashboard is built in, so the service looks like
 the artifacts it hosts.
 
 `web-artifacts-builder` is adapted from
