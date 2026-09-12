@@ -10,7 +10,10 @@ use time::OffsetDateTime;
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-use crate::{error::AppError, models::Meta};
+use crate::{
+    error::AppError,
+    models::{ContentType, Meta},
+};
 
 /// Filesystem-backed artifact store.
 ///
@@ -44,7 +47,8 @@ impl Storage {
 
     pub async fn create(
         &self,
-        html: &[u8],
+        content: &[u8],
+        content_type: ContentType,
         title: Option<String>,
         description: Option<String>,
     ) -> Result<Meta, AppError> {
@@ -57,21 +61,23 @@ impl Storage {
             created_at: now,
             updated_at: now,
             version: 1,
-            size_bytes: html.len() as u64,
-            sha256: sha256_hex(html),
+            size_bytes: content.len() as u64,
+            sha256: sha256_hex(content),
+            content_type,
         };
 
         let staging = self.root.join(format!(".tmp-{id}"));
         let final_dir = self.dir(id);
-        let html = html.to_vec();
+        let content = content.to_vec();
         let meta_for_write = meta.clone();
+        let ext = content_ext(content_type);
 
         tokio::task::spawn_blocking(move || -> std::io::Result<()> {
             if staging.exists() {
                 fs::remove_dir_all(&staging)?;
             }
             fs::create_dir_all(staging.join("versions"))?;
-            fs::write(staging.join("index.html"), &html)?;
+            fs::write(staging.join(format!("index.{ext}")), &content)?;
             write_meta(&staging, &meta_for_write)?;
             fs::rename(&staging, &final_dir)
         })
@@ -84,7 +90,8 @@ impl Storage {
     pub async fn update(
         &self,
         id: Uuid,
-        html: &[u8],
+        content: &[u8],
+        content_type: ContentType,
         title: Option<String>,
         description: Option<String>,
     ) -> Result<Meta, AppError> {
@@ -92,12 +99,19 @@ impl Storage {
         let _guard = lock.lock().await;
 
         let mut meta = self.read_meta(id).await?;
+        if content_type != meta.content_type {
+            return Err(AppError::BadRequest(format!(
+                "artifact is {}; cannot switch content types",
+                content_ext(meta.content_type)
+            )));
+        }
         let old_version = meta.version;
+        let ext = content_ext(meta.content_type);
 
         meta.version += 1;
         meta.updated_at = OffsetDateTime::now_utc();
-        meta.size_bytes = html.len() as u64;
-        meta.sha256 = sha256_hex(html);
+        meta.size_bytes = content.len() as u64;
+        meta.sha256 = sha256_hex(content);
         // Metadata fields are only touched when the caller supplied them.
         if title.is_some() {
             meta.title = title;
@@ -107,7 +121,7 @@ impl Storage {
         }
 
         let dir = self.dir(id);
-        let html = html.to_vec();
+        let content = content.to_vec();
         let meta_for_write = meta.clone();
 
         tokio::task::spawn_blocking(move || -> std::io::Result<()> {
@@ -116,10 +130,10 @@ impl Storage {
             // Copy rather than rename so the current version stays readable
             // throughout, then swap in the new content and metadata.
             fs::copy(
-                dir.join("index.html"),
-                versions.join(format!("index.v{old_version}.html")),
+                dir.join(format!("index.{ext}")),
+                versions.join(format!("index.v{old_version}.{ext}")),
             )?;
-            write_atomic(&dir.join("index.html"), &html)?;
+            write_atomic(&dir.join(format!("index.{ext}")), &content)?;
             write_meta(&dir, &meta_for_write)
         })
         .await
@@ -172,25 +186,32 @@ impl Storage {
         })
     }
 
-    /// Reads the HTML for `version` (defaults to current). Any version that
-    /// ever existed stays addressable; anything else is a 404.
-    pub async fn read_html(&self, id: Uuid, version: Option<u32>) -> Result<Vec<u8>, AppError> {
+    /// Reads the content for `version` (defaults to current) and returns it
+    /// alongside the artifact metadata. Any version that ever existed stays
+    /// addressable; anything else is a 404.
+    pub async fn read_content(
+        &self,
+        id: Uuid,
+        version: Option<u32>,
+    ) -> Result<(Vec<u8>, Meta), AppError> {
         let meta = self.read_meta(id).await?;
         let dir = self.dir(id);
+        let ext = content_ext(meta.content_type);
 
         let path = match version {
-            None => dir.join("index.html"),
-            Some(v) if v == meta.version => dir.join("index.html"),
+            None => dir.join(format!("index.{ext}")),
+            Some(v) if v == meta.version => dir.join(format!("index.{ext}")),
             Some(v) if v >= 1 && v < meta.version => {
-                dir.join("versions").join(format!("index.v{v}.html"))
+                dir.join("versions").join(format!("index.v{v}.{ext}"))
             }
             Some(_) => return Err(AppError::NotFound),
         };
 
-        tokio::task::spawn_blocking(move || fs::read(path))
+        let bytes = tokio::task::spawn_blocking(move || fs::read(path))
             .await
             .map_err(join_err)?
-            .map_err(|_| AppError::NotFound)
+            .map_err(|_| AppError::NotFound)?;
+        Ok((bytes, meta))
     }
 
     pub async fn delete(&self, id: Uuid) -> Result<(), AppError> {
@@ -248,6 +269,13 @@ impl Storage {
 
 fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(Sha256::digest(bytes))
+}
+
+fn content_ext(content_type: ContentType) -> &'static str {
+    match content_type {
+        ContentType::Html => "html",
+        ContentType::Markdown => "md",
+    }
 }
 
 fn write_meta(dir: &Path, meta: &Meta) -> std::io::Result<()> {

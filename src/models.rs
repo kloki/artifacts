@@ -2,6 +2,15 @@ use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 use uuid::Uuid;
 
+/// Whether an artifact stores raw HTML or raw Markdown.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ContentType {
+    #[default]
+    Html,
+    Markdown,
+}
+
 /// Persisted as `meta.json` next to the artifact's `index.html`.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Meta {
@@ -17,6 +26,8 @@ pub struct Meta {
     pub version: u32,
     pub size_bytes: u64,
     pub sha256: String,
+    #[serde(default)]
+    pub content_type: ContentType,
 }
 
 /// `view_uri` is derived from PUBLIC_BASE_URL at response time rather than

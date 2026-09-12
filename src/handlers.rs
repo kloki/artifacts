@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
+use askama::Template;
 use axum::{
     Json,
     body::Bytes,
     extract::{Path, Query, State},
-    http::{StatusCode, header},
+    http::{HeaderMap, StatusCode, header},
     response::{IntoResponse, Response},
 };
 use uuid::Uuid;
@@ -12,7 +13,9 @@ use uuid::Uuid;
 use crate::{
     AppState,
     error::AppError,
-    models::{ArtifactResponse, ListParams, ListResponse, Meta, MetaParams, ViewParams},
+    models::{
+        ArtifactResponse, ContentType, ListParams, ListResponse, Meta, MetaParams, ViewParams,
+    },
 };
 
 const DEFAULT_LIMIT: usize = 50;
@@ -55,15 +58,29 @@ fn require_html(body: &Bytes) -> Result<(), AppError> {
     Ok(())
 }
 
+fn content_type_from_headers(headers: &HeaderMap) -> ContentType {
+    match headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+    {
+        Some(ct) if ct.starts_with("text/markdown") || ct.starts_with("text/x-markdown") => {
+            ContentType::Markdown
+        }
+        _ => ContentType::Html,
+    }
+}
+
 pub async fn create_artifact(
     State(state): State<Arc<AppState>>,
     Query(params): Query<MetaParams>,
+    headers: HeaderMap,
     body: Bytes,
 ) -> ApiResult<Response> {
     require_html(&body)?;
+    let content_type = content_type_from_headers(&headers);
     let meta = state
         .storage
-        .create(&body, params.title, params.description)
+        .create(&body, content_type, params.title, params.description)
         .await?;
     tracing::info!(id = %meta.id, bytes = meta.size_bytes, "artifact created");
     Ok((StatusCode::CREATED, Json(respond(&state, meta))).into_response())
@@ -73,13 +90,15 @@ pub async fn update_artifact(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
     Query(params): Query<MetaParams>,
+    headers: HeaderMap,
     body: Bytes,
 ) -> ApiResult<Json<ArtifactResponse>> {
     let id = parse_id(&id)?;
     require_html(&body)?;
+    let content_type = content_type_from_headers(&headers);
     let meta = state
         .storage
-        .update(id, &body, params.title, params.description)
+        .update(id, &body, content_type, params.title, params.description)
         .await?;
     tracing::info!(id = %meta.id, version = meta.version, "artifact updated");
     Ok(Json(respond(&state, meta)))
@@ -154,7 +173,14 @@ pub async fn view_artifact(
     Query(params): Query<ViewParams>,
 ) -> ApiResult<Response> {
     let id = parse_view_id(&id)?;
-    let html = state.storage.read_html(id, params.version).await?;
+    let (content, meta) = state.storage.read_content(id, params.version).await?;
+
+    let body = match meta.content_type {
+        ContentType::Html => content,
+        ContentType::Markdown => {
+            wrap_markdown(meta.title.as_deref(), meta.description.as_deref(), &content)
+        }
+    };
 
     Ok((
         [
@@ -163,9 +189,29 @@ pub async fn view_artifact(
             (header::REFERRER_POLICY, "no-referrer"),
             (header::CACHE_CONTROL, "no-cache"),
         ],
-        html,
+        body,
     )
         .into_response())
+}
+
+/// Askama template for the Markdown artifact view.
+#[derive(Template)]
+#[template(path = "markdown.html")]
+struct MarkdownTemplate<'a> {
+    title: &'a str,
+    description: Option<&'a str>,
+    raw: &'a str,
+}
+
+/// Renders a raw Markdown artifact as a self-contained Bauhaus-styled page
+/// that shows the original text and offers a copy-to-clipboard button.
+fn wrap_markdown(title: Option<&str>, description: Option<&str>, raw: &[u8]) -> Vec<u8> {
+    let template = MarkdownTemplate {
+        title: title.unwrap_or("untitled"),
+        description,
+        raw: std::str::from_utf8(raw).unwrap_or_default(),
+    };
+    template.render().unwrap_or_default().into_bytes()
 }
 
 /// The management dashboard. Embedded at compile time so the binary stays
