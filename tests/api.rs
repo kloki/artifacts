@@ -79,7 +79,7 @@ async fn create_get_and_view() {
     assert_eq!(created["size_bytes"], html.len());
     assert_eq!(
         created["view_uri"],
-        format!("https://artifacts.example.com/a/{id}")
+        format!("https://artifacts.example.com/a/{id}-my-page")
     );
     // sha256 of the uploaded bytes, lowercase hex.
     assert_eq!(created["sha256"].as_str().unwrap().len(), 64);
@@ -226,6 +226,48 @@ async fn rejects_invalid_input() {
 
     let missing = uuid::Uuid::new_v4();
     let (status, _) = send(&app, put(&format!("/api/artifacts/{missing}"), "<p>x</p>")).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn view_uri_includes_slug_when_title_present() {
+    let dir = TempDir::new().unwrap();
+    let app = test_app(&dir);
+
+    let (_, created) = send_json(
+        &app,
+        post(
+            "/api/artifacts?title=My%20Page%21&description=d",
+            "<h1>x</h1>",
+        ),
+    )
+    .await;
+    let id = created["id"].as_str().unwrap();
+    let uri = created["view_uri"].as_str().unwrap();
+    assert!(uri.contains(&format!("{id}-my-page")));
+}
+
+#[tokio::test]
+async fn view_routing_ignores_cosmetic_slug() {
+    let dir = TempDir::new().unwrap();
+    let app = test_app(&dir);
+    let html = "<h1>x</h1>";
+
+    let (_, created) = send_json(&app, post("/api/artifacts?title=My%20Page", html)).await;
+    let id = created["id"].as_str().unwrap().to_string();
+
+    // Bare UUID still works.
+    let (status, body) = send(&app, get(&format!("/a/{id}"))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, html.as_bytes());
+
+    // UUID-first slug works and the slug text is ignored.
+    let (status, body) = send(&app, get(&format!("/a/{id}-anything-here"))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, html.as_bytes());
+
+    // Non-UUID garbage is still a 404.
+    let (status, _) = send(&app, get("/a/not-a-uuid-and-more")).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
