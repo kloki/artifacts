@@ -55,16 +55,18 @@ Metadata travels in query parameters.
 | ------ | --------------------- | ------------------------- | ------- |
 | POST   | `/api/artifacts`      | Create                    | 201     |
 | PUT    | `/api/artifacts/{id}` | Replace HTML, same URL    | 200     |
+| PATCH  | `/api/artifacts/{id}` | Edit title or description | 200     |
 | GET    | `/api/artifacts/{id}` | Metadata                  | 200     |
 | GET    | `/api/artifacts`      | List, newest first        | 200     |
 | DELETE | `/api/artifacts/{id}` | Delete, including history | 204     |
-| GET    | `/a/{id}[?version=N]` | Public view               | 200     |
+| GET    | `/a/{id}[-{slug}][?version=N]` | Public view               | 200     |
 | GET    | `/`                   | Management dashboard      | 200     |
 | GET    | `/healthz`            | Health check              | 200     |
 
-Query parameters: `title` and `description` on create/update (on update, only
-applied when present — omitting them preserves existing values); `limit`
-(default 50, max 200) and `offset` on list; `version` on view.
+Query parameters: `title` and `description` on create/update/patch (on update
+and patch, only applied when present — omitting them preserves existing values;
+on patch, an empty value clears the field); `limit` (default 50, max 200) and
+`offset` on list; `version` on view.
 
 Artifact JSON:
 
@@ -78,9 +80,13 @@ Artifact JSON:
   "version": 2,
   "size_bytes": 18422,
   "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
-  "view_uri": "https://artifacts.example.com/a/3f2a1c6e-8b4d-4a1f-9c2e-7d5b0a9e1f34"
+  "view_uri": "https://artifacts.example.com/a/3f2a1c6e-8b4d-4a1f-9c2e-7d5b0a9e1f34-quarterly-metrics"
 }
 ```
+
+The optional `{slug}` on the public view route is cosmetic: any text after the
+UUID is ignored for routing, so renaming an artifact never breaks an existing
+link.
 
 Errors are `{"error": "<code>", "message": "<detail>"}` with status 400
 (empty body, malformed UUID), 404 (unknown artifact or version), or 413
@@ -120,9 +126,7 @@ its own. Two details worth knowing:
   from 1 to N is addressable, but nothing records when each was published, so
   the list shows version numbers only.
 
-Editing a title or description is deliberately not offered — `PUT` requires the
-HTML body and would bump the version, so renaming would need a metadata-only
-endpoint that does not exist.
+Metadata edits (title and description) use `PATCH` and do not bump the version.
 
 ## Storage
 

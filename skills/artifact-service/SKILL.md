@@ -51,7 +51,7 @@ Response `201`:
   "version": 1,
   "size_bytes": 18422,
   "sha256": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
-  "view_uri": "https://artifacts.example.com/a/3f2a1c6e-8b4d-4a1f-9c2e-7d5b0a9e1f34"
+  "view_uri": "https://artifacts.example.com/a/3f2a1c6e-8b4d-4a1f-9c2e-7d5b0a9e1f34-quarterly-metrics"
 }
 ```
 
@@ -86,6 +86,18 @@ Always prefer updating over re-publishing when iterating on the same artifact �
 re-publishing creates a second artifact and leaves the human holding a stale
 link.
 
+## Edit metadata
+
+`PATCH /api/artifacts/{id}?title=…&description=…` updates title and/or
+description without replacing the HTML or bumping the version. An empty value
+clears the field; omitting a parameter leaves it unchanged. At least one of the
+two must be supplied.
+
+```bash
+curl -sS -X PATCH \
+  "$ARTIFACTS_URL/api/artifacts/$ARTIFACT_ID?title=Renamed"
+```
+
 ## Markdown artifacts
 
 To store Markdown instead of HTML, send `Content-Type: text/markdown`. The
@@ -108,6 +120,7 @@ addressable:
 
 ```
 https://artifacts.example.com/a/{id}             # current version
+https://artifacts.example.com/a/{id}-{slug}       # same page, cosmetic slug
 https://artifacts.example.com/a/{id}?version=1   # first version
 ```
 
@@ -147,15 +160,16 @@ Never present a filesystem path as the way to view an artifact.
 | Method | Path                  | Purpose                | Success |
 | ------ | --------------------- | ---------------------- | ------- |
 | POST   | `/api/artifacts`      | Publish new            | 201     |
-| PUT    | `/api/artifacts/{id}` | Replace HTML, keep URL | 200     |
-| GET    | `/api/artifacts/{id}` | Metadata               | 200     |
+| PUT    | `/api/artifacts/{id}` | Replace HTML, keep URL  | 200     |
+| PATCH  | `/api/artifacts/{id}` | Edit title/description  | 200     |
+| GET    | `/api/artifacts/{id}` | Metadata                | 200     |
 | GET    | `/api/artifacts`      | List (paginated)       | 200     |
 | DELETE | `/api/artifacts/{id}` | Delete permanently     | 204     |
-| GET    | `/a/{id}[?version=N]` | Human-facing view      | 200     |
+| GET    | `/a/{id}[-{slug}][?version=N]` | Human-facing view      | 200     |
 | GET    | `/healthz`            | Service health         | 200     |
 
-Query parameters: `title`, `description` on POST/PUT; `limit`, `offset` on list;
-`version` on view.
+Query parameters: `title`, `description` on POST/PUT/PATCH; `limit`, `offset`
+on list; `version` on view.
 
 ## Errors
 

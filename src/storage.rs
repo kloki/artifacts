@@ -142,6 +142,36 @@ impl Storage {
         Ok(meta)
     }
 
+    /// Update only the metadata fields. `updated_at` changes but `version` does
+    /// not, since no new content is published. Use `Some(Some(...))` to set,
+    /// `Some(None)` to clear, and `None` to leave a field untouched.
+    pub async fn update_metadata(
+        &self,
+        id: Uuid,
+        title: Option<Option<String>>,
+        description: Option<Option<String>>,
+    ) -> Result<Meta, AppError> {
+        let lock = self.lock_for(id);
+        let _guard = lock.lock().await;
+
+        let mut meta = self.read_meta(id).await?;
+        if let Some(t) = title {
+            meta.title = t;
+        }
+        if let Some(d) = description {
+            meta.description = d;
+        }
+        meta.updated_at = OffsetDateTime::now_utc();
+
+        let dir = self.dir(id);
+        let meta_for_write = meta.clone();
+        tokio::task::spawn_blocking(move || write_meta(&dir, &meta_for_write))
+            .await
+            .map_err(join_err)??;
+
+        Ok(meta)
+    }
+
     pub async fn read_meta(&self, id: Uuid) -> Result<Meta, AppError> {
         let path = self.dir(id).join("meta.json");
         let bytes = tokio::task::spawn_blocking(move || fs::read(path))
