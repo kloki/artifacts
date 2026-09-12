@@ -6,11 +6,10 @@ pub mod storage;
 
 use std::sync::Arc;
 
-use axum::{extract::DefaultBodyLimit, routing::get, Router};
-use tower_http::{cors::CorsLayer, trace::TraceLayer};
-
+use axum::{Router, extract::DefaultBodyLimit, routing::get};
 use config::Config;
 use storage::Storage;
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
 
 pub struct AppState {
     pub config: Config,
@@ -27,6 +26,7 @@ pub fn app(state: Arc<AppState>) -> Router {
             "/artifacts/{id}",
             get(handlers::get_artifact)
                 .put(handlers::update_artifact)
+                .patch(handlers::patch_artifact)
                 .delete(handlers::delete_artifact),
         )
         .layer(DefaultBodyLimit::max(state.config.max_body_bytes))

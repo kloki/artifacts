@@ -55,6 +55,7 @@ Metadata travels in query parameters.
 | ------ | --------------------- | ------------------------- | ------- |
 | POST   | `/api/artifacts`      | Create                    | 201     |
 | PUT    | `/api/artifacts/{id}` | Replace HTML, same URL    | 200     |
+| PATCH  | `/api/artifacts/{id}` | Edit title or description | 200     |
 | GET    | `/api/artifacts/{id}` | Metadata                  | 200     |
 | GET    | `/api/artifacts`      | List, newest first        | 200     |
 | DELETE | `/api/artifacts/{id}` | Delete, including history | 204     |
@@ -62,9 +63,10 @@ Metadata travels in query parameters.
 | GET    | `/`                   | Management dashboard      | 200     |
 | GET    | `/healthz`            | Health check              | 200     |
 
-Query parameters: `title` and `description` on create/update (on update, only
-applied when present — omitting them preserves existing values); `limit`
-(default 50, max 200) and `offset` on list; `version` on view.
+Query parameters: `title` and `description` on create/update/patch (on update
+and patch, only applied when present — omitting them preserves existing values;
+on patch, an empty value clears the field); `limit` (default 50, max 200) and
+`offset` on list; `version` on view.
 
 Artifact JSON:
 
@@ -105,9 +107,7 @@ its own. Two details worth knowing:
   from 1 to N is addressable, but nothing records when each was published, so
   the list shows version numbers only.
 
-Editing a title or description is deliberately not offered — `PUT` requires the
-HTML body and would bump the version, so renaming would need a metadata-only
-endpoint that does not exist.
+Metadata edits (title and description) use `PATCH` and do not bump the version.
 
 ## Storage
 
