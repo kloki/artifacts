@@ -300,6 +300,62 @@ async fn update_preserves_metadata_unless_supplied() {
 }
 
 #[tokio::test]
+async fn patch_metadata_without_bumping_version() {
+    let dir = TempDir::new().unwrap();
+    let app = test_app(&dir);
+
+    let created = create(&app, "<p>1</p>").await;
+    let id = created["id"].as_str().unwrap().to_string();
+    let original_sha = created["sha256"].as_str().unwrap();
+
+    let (status, renamed) = send_json(
+        &app,
+        Request::patch(format!("/api/artifacts/{id}?title=Renamed&description="))
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(renamed["title"], "Renamed");
+    assert_eq!(renamed["description"], Value::Null);
+    assert_eq!(renamed["version"], created["version"]);
+    assert_eq!(renamed["sha256"], original_sha);
+    assert!(renamed["updated_at"].as_str().unwrap() >= created["updated_at"].as_str().unwrap());
+
+    let (status, redescribed) = send_json(
+        &app,
+        Request::patch(format!("/api/artifacts/{id}?title=&description=New%20desc"))
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(redescribed["title"], Value::Null);
+    assert_eq!(redescribed["description"], "New desc");
+    assert_eq!(redescribed["version"], created["version"]);
+
+    let (status, json) = send_json(
+        &app,
+        Request::patch(format!("/api/artifacts/{id}"))
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(json["error"], "bad_request");
+
+    let missing = uuid::Uuid::new_v4();
+    let (status, _) = send_json(
+        &app,
+        Request::patch(format!("/api/artifacts/{missing}?title=X"))
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn healthz_reports_ok() {
     let dir = TempDir::new().unwrap();
     let app = test_app(&dir);

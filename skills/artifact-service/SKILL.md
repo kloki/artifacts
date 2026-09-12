@@ -86,6 +86,18 @@ Always prefer updating over re-publishing when iterating on the same artifact �
 re-publishing creates a second artifact and leaves the human holding a stale
 link.
 
+## Edit metadata
+
+`PATCH /api/artifacts/{id}?title=…&description=…` updates title and/or
+description without replacing the HTML or bumping the version. An empty value
+clears the field; omitting a parameter leaves it unchanged. At least one of the
+two must be supplied.
+
+```bash
+curl -sS -X PATCH \
+  "$ARTIFACTS_URL/api/artifacts/$ARTIFACT_ID?title=Renamed"
+```
+
 ## View and version history
 
 The human opens `view_uri` directly in a browser. Older versions remain
@@ -133,15 +145,16 @@ Never present a filesystem path as the way to view an artifact.
 | Method | Path                  | Purpose                | Success |
 | ------ | --------------------- | ---------------------- | ------- |
 | POST   | `/api/artifacts`      | Publish new            | 201     |
-| PUT    | `/api/artifacts/{id}` | Replace HTML, keep URL | 200     |
-| GET    | `/api/artifacts/{id}` | Metadata               | 200     |
+| PUT    | `/api/artifacts/{id}` | Replace HTML, keep URL  | 200     |
+| PATCH  | `/api/artifacts/{id}` | Edit title/description  | 200     |
+| GET    | `/api/artifacts/{id}` | Metadata                | 200     |
 | GET    | `/api/artifacts`      | List (paginated)       | 200     |
 | DELETE | `/api/artifacts/{id}` | Delete permanently     | 204     |
 | GET    | `/a/{id}[-{slug}][?version=N]` | Human-facing view      | 200     |
 | GET    | `/healthz`            | Service health         | 200     |
 
-Query parameters: `title`, `description` on POST/PUT; `limit`, `offset` on list;
-`version` on view.
+Query parameters: `title`, `description` on POST/PUT/PATCH; `limit`, `offset`
+on list; `version` on view.
 
 ## Errors
 

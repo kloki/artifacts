@@ -85,6 +85,31 @@ pub async fn update_artifact(
     Ok(Json(respond(&state, meta)))
 }
 
+pub async fn patch_artifact(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Query(params): Query<MetaParams>,
+) -> ApiResult<Json<ArtifactResponse>> {
+    let id = parse_id(&id)?;
+    if params.title.is_none() && params.description.is_none() {
+        return Err(AppError::BadRequest(
+            "at least one of title or description must be supplied".to_string(),
+        ));
+    }
+    let title = params
+        .title
+        .map(|t| if t.is_empty() { None } else { Some(t) });
+    let description = params
+        .description
+        .map(|d| if d.is_empty() { None } else { Some(d) });
+    let meta = state
+        .storage
+        .update_metadata(id, title, description)
+        .await?;
+    tracing::info!(id = %meta.id, "artifact metadata updated");
+    Ok(Json(respond(&state, meta)))
+}
+
 pub async fn get_artifact(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,

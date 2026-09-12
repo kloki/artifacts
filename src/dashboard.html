@@ -444,6 +444,43 @@
         margin-top: var(--space-6);
       }
 
+      .field {
+        margin-bottom: var(--space-4);
+      }
+
+      .field label {
+        display: block;
+        margin-bottom: var(--space-2);
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--ink-muted);
+      }
+
+      .field input,
+      .field textarea {
+        width: 100%;
+        padding: var(--space-3);
+        border: 2px solid var(--rule);
+        border-radius: var(--radius);
+        background: var(--paper-raised);
+        color: var(--ink);
+        font-family: inherit;
+        font-size: 1rem;
+        transition: border-color 150ms ease;
+      }
+
+      .field input:focus,
+      .field textarea:focus {
+        border-color: var(--blue);
+      }
+
+      .field textarea {
+        min-height: 4rem;
+        resize: vertical;
+      }
+
       .load-more {
         margin-top: var(--space-6);
       }
@@ -611,6 +648,25 @@
       </div>
     </dialog>
 
+    <dialog id="edit-dialog">
+      <h2>Edit artifact</h2>
+      <p class="dialog-target" id="edit-target"></p>
+      <div class="field">
+        <label for="edit-title">Title</label>
+        <input id="edit-title" type="text" autocomplete="off" />
+      </div>
+      <div class="field">
+        <label for="edit-description">Description</label>
+        <textarea id="edit-description"></textarea>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn" id="cancel-edit" type="button">cancel</button>
+        <button class="btn btn-primary" id="save-edit" type="button">
+          save
+        </button>
+      </div>
+    </dialog>
+
     <script>
       "use strict";
 
@@ -635,6 +691,12 @@
         dialogTarget: document.getElementById("confirm-target"),
         cancelDelete: document.getElementById("cancel-delete"),
         doDelete: document.getElementById("do-delete"),
+        editDialog: document.getElementById("edit-dialog"),
+        editTarget: document.getElementById("edit-target"),
+        editTitle: document.getElementById("edit-title"),
+        editDescription: document.getElementById("edit-description"),
+        cancelEdit: document.getElementById("cancel-edit"),
+        saveEdit: document.getElementById("save-edit"),
       };
 
       /** Every artifact loaded so far, newest first — the server sorts. */
@@ -645,6 +707,8 @@
       const expanded = new Set();
       /** The artifact the delete dialog is currently asking about. */
       let pendingDelete = null;
+      /** The artifact the edit dialog is currently editing. */
+      let pendingEdit = null;
 
       el.emptyOrigin.textContent = window.location.origin;
 
@@ -758,6 +822,8 @@
           open,
           separator(),
           button("copy link", "", "copy", item.id),
+          separator(),
+          button("edit", "", "edit", item.id),
           separator(),
           button("delete", "link-danger", "delete", item.id),
         );
@@ -972,6 +1038,12 @@
           if (expanded.has(item.id)) expanded.delete(item.id);
           else expanded.add(item.id);
           render();
+        } else if (target.dataset.action === "edit") {
+          pendingEdit = item;
+          el.editTarget.textContent = (item.title || "untitled") + " — " + item.id;
+          el.editTitle.value = item.title || "";
+          el.editDescription.value = item.description || "";
+          el.editDialog.showModal();
         } else if (target.dataset.action === "delete") {
           pendingDelete = item;
           el.dialogTarget.textContent = (item.title || "untitled") + " — " + item.id;
@@ -989,6 +1061,38 @@
       el.cancelDelete.addEventListener("click", () => {
         pendingDelete = null;
         el.dialog.close();
+      });
+
+      el.cancelEdit.addEventListener("click", () => {
+        pendingEdit = null;
+        el.editDialog.close();
+      });
+
+      el.saveEdit.addEventListener("click", async () => {
+        const item = pendingEdit;
+        if (!item) return;
+        pendingEdit = null;
+        el.editDialog.close();
+
+        const params = new URLSearchParams();
+        params.set("title", el.editTitle.value);
+        params.set("description", el.editDescription.value);
+        setStatus("Saving…");
+        try {
+          const response = await fetch(
+            "/api/artifacts/" + encodeURIComponent(item.id) + "?" + params.toString(),
+            { method: "PATCH", headers: { Accept: "application/json" } },
+          );
+          if (!response.ok) throw new Error(await apiError(response));
+          const updated = await response.json();
+          const index = items.findIndex((candidate) => candidate.id === updated.id);
+          if (index !== -1) items[index] = updated;
+          await load();
+          setStatus("Updated " + item.id + ".");
+        } catch (error) {
+          setStatus("");
+          showError("Could not update " + item.id + ": " + error.message);
+        }
       });
 
       el.search.addEventListener("input", render);
