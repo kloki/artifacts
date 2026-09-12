@@ -86,6 +86,21 @@ Always prefer updating over re-publishing when iterating on the same artifact â€
 re-publishing creates a second artifact and leaves the human holding a stale
 link.
 
+## Markdown artifacts
+
+To store Markdown instead of HTML, send `Content-Type: text/markdown`. The
+service stores the raw text and serves it at the view URL as a Bauhaus-styled
+page with a **copy raw text** button. Versioning and updating work the same as
+HTML, but you cannot switch an existing artifact from HTML to Markdown (or back)
+with `PUT`.
+
+```bash
+curl -sS -X POST \
+  -H 'Content-Type: text/markdown' \
+  --data-binary @notes.md \
+  "$ARTIFACTS_URL/api/artifacts?title=Notes"
+```
+
 ## View and version history
 
 The human opens `view_uri` directly in a browser. Older versions remain

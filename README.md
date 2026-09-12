@@ -86,6 +86,21 @@ Errors are `{"error": "<code>", "message": "<detail>"}` with status 400
 (empty body, malformed UUID), 404 (unknown artifact or version), or 413
 (body over `MAX_BODY_BYTES`).
 
+## Markdown artifacts
+
+Upload Markdown by sending `Content-Type: text/markdown` (or
+`text/x-markdown`). The raw Markdown is stored verbatim and served at `/a/{id}`
+as a self-contained Bauhaus-styled page that shows the original text with a
+**copy raw text** button. Versioning works the same as HTML. You cannot switch
+an existing artifact between HTML and Markdown with `PUT`; the content type must
+stay the same.
+
+```bash
+curl -sS -X POST -H 'Content-Type: text/markdown' \
+  --data-binary @notes.md \
+  "$ARTIFACTS_URL/api/artifacts?title=Notes"
+```
+
 ## Dashboard
 
 `GET /` serves a management dashboard: a single self-contained HTML page,
@@ -115,9 +130,9 @@ One directory per artifact, no database:
 
 ```
 $DATA_DIR/{uuid}/
-  index.html                 # current version
+  index.{html,md}            # current version (HTML or Markdown)
   meta.json                  # metadata
-  versions/index.v{N}.html   # every superseded version
+  versions/index.v{N}.{html,md}  # every superseded version
 ```
 
 Writes go through a temp file and `rename`, and new artifacts are assembled in a
