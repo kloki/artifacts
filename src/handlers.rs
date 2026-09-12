@@ -21,8 +21,23 @@ const MAX_LIMIT: usize = 200;
 type ApiResult<T> = Result<T, AppError>;
 
 fn respond(state: &AppState, meta: Meta) -> ArtifactResponse {
-    let view_uri = state.config.view_uri(meta.id);
+    let view_uri = state.config.view_uri(meta.id, meta.title.as_deref());
     ArtifactResponse { meta, view_uri }
+}
+
+/// Public view IDs may be a bare UUID (`/a/{uuid}`) or a UUID followed by a
+/// cosmetic slug (`/a/{uuid}-{slug}`). Only the leading UUID is used for
+/// routing, so the human-readable part can change without breaking links.
+fn parse_view_id(raw: &str) -> Result<uuid::Uuid, AppError> {
+    if let Ok(id) = uuid::Uuid::parse_str(raw) {
+        return Ok(id);
+    }
+    if raw.len() > 36 && raw.as_bytes().get(36) == Some(&b'-') {
+        if let Ok(id) = uuid::Uuid::parse_str(&raw[..36]) {
+            return Ok(id);
+        }
+    }
+    Err(AppError::NotFound)
 }
 
 /// Path IDs are parsed by hand so the API can answer 400 while the public view
@@ -113,7 +128,7 @@ pub async fn view_artifact(
     Path(id): Path<String>,
     Query(params): Query<ViewParams>,
 ) -> ApiResult<Response> {
-    let id = Uuid::parse_str(&id).map_err(|_| AppError::NotFound)?;
+    let id = parse_view_id(&id)?;
     let html = state.storage.read_html(id, params.version).await?;
 
     Ok((
