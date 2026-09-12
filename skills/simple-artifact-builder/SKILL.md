@@ -107,6 +107,33 @@ horizontal scrollbar appears on the body.
 - Handing the user a local file path instead of publishing and returning the
   `view_uri`.
 
+## Live updates
+
+If the artifact will be updated in place, include this snippet so viewers see
+changes without refreshing manually. It reads the artifact UUID from the URL and
+listens to `/api/artifacts/{id}/events`. Pinned historical views (`?version=N`)
+ignore update events and stay on the selected version.
+
+```html
+<script>
+  "use strict";
+  (function () {
+    const match = location.pathname.match(/^\/a\/([0-9a-f-]{36})/);
+    if (!match) return;
+    const source = new EventSource("/api/artifacts/" + match[1] + "/events");
+    source.addEventListener("update", function () {
+      if (!location.search.includes("version=")) {
+        location.reload();
+      }
+    });
+    source.addEventListener("deleted", function () {
+      document.body.innerHTML =
+        '<main class="page"><h1>Deleted</h1><p>This artifact has been removed.</p></main>';
+    });
+  })();
+</script>
+```
+
 ## Reference
 
 - **Visual style**: `../STYLE_GUIDE.md`

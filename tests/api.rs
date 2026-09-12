@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use artifacts::{AppState, app, config::Config, storage::Storage};
+use artifacts::{AppState, app, config::Config, events::EventBus, storage::Storage};
 use axum::{
     Router,
     body::Body,
@@ -21,7 +21,11 @@ fn test_app(dir: &TempDir) -> Router {
         max_body_bytes: MAX_BODY,
     };
     let storage = Storage::new(&config.data_dir).unwrap();
-    app(Arc::new(AppState { config, storage }))
+    app(Arc::new(AppState {
+        config,
+        storage,
+        events: EventBus::new(),
+    }))
 }
 
 async fn send(app: &Router, req: Request<Body>) -> (StatusCode, Vec<u8>) {
@@ -436,6 +440,77 @@ async fn create_markdown(app: &Router, md: &str) -> String {
         "create markdown failed: {json}"
     );
     json["id"].as_str().unwrap().to_string()
+}
+
+#[tokio::test]
+async fn sse_notifies_on_update_and_delete() {
+    let dir = TempDir::new().unwrap();
+    let app = test_app(&dir);
+    let created = create(&app, "<p>1</p>").await;
+    let id = created["id"].as_str().unwrap().to_string();
+
+    let res = app
+        .clone()
+        .oneshot(
+            Request::get(format!("/api/artifacts/{id}/events"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    assert_eq!(
+        res.headers()[axum::http::header::CONTENT_TYPE],
+        "text/event-stream"
+    );
+    let mut body = res.into_body();
+
+    let _ = send_json(&app, put(&format!("/api/artifacts/{id}"), "<p>2</p>")).await;
+    let chunk = body
+        .frame()
+        .await
+        .unwrap()
+        .unwrap()
+        .data_ref()
+        .unwrap()
+        .clone();
+    let text = String::from_utf8(chunk.to_vec()).unwrap();
+    assert!(text.contains("event: update"));
+    assert!(text.contains(r#"{"version":2}"#));
+
+    let _ = send(
+        &app,
+        Request::delete(format!("/api/artifacts/{id}"))
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await;
+    let chunk = body
+        .frame()
+        .await
+        .unwrap()
+        .unwrap()
+        .data_ref()
+        .unwrap()
+        .clone();
+    let text = String::from_utf8(chunk.to_vec()).unwrap();
+    assert!(text.contains("event: deleted"));
+}
+
+#[tokio::test]
+async fn sse_unknown_artifact_is_404() {
+    let dir = TempDir::new().unwrap();
+    let app = test_app(&dir);
+    let missing = uuid::Uuid::new_v4();
+    let res = app
+        .oneshot(
+            Request::get(format!("/api/artifacts/{missing}/events"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::NOT_FOUND);
 }
 
 #[tokio::test]
