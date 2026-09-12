@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use artifacts::{AppState, app, config::Config, storage::Storage};
+use artifacts::{AppState, app, config::Config, events::EventBus, storage::Storage};
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -22,7 +22,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let listener = tokio::net::TcpListener::bind(config.bind_addr).await?;
     tracing::info!(addr = %listener.local_addr()?, "listening");
 
-    let state = Arc::new(AppState { config, storage });
+    let state = Arc::new(AppState {
+        config,
+        storage,
+        events: EventBus::new(),
+    });
     axum::serve(listener, app(state))
         .with_graceful_shutdown(shutdown_signal())
         .await?;

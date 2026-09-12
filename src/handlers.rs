@@ -5,13 +5,18 @@ use axum::{
     body::Bytes,
     extract::{Path, Query, State},
     http::{StatusCode, header},
-    response::{IntoResponse, Response},
+    response::{
+        IntoResponse, Response,
+        sse::{Event, Sse},
+    },
 };
+use tokio_stream::{StreamExt, wrappers::BroadcastStream};
 use uuid::Uuid;
 
 use crate::{
     AppState,
     error::AppError,
+    events::EventKind,
     models::{ArtifactResponse, ListParams, ListResponse, Meta, MetaParams, ViewParams},
 };
 
@@ -66,6 +71,7 @@ pub async fn update_artifact(
         .storage
         .update(id, &body, params.title, params.description)
         .await?;
+    state.events.publish(id, EventKind::Update(meta.version));
     tracing::info!(id = %meta.id, version = meta.version, "artifact updated");
     Ok(Json(respond(&state, meta)))
 }
@@ -102,8 +108,38 @@ pub async fn delete_artifact(
 ) -> ApiResult<StatusCode> {
     let id = parse_id(&id)?;
     state.storage.delete(id).await?;
+    state.events.publish(id, EventKind::Deleted);
+    state.events.remove(id);
     tracing::info!(%id, "artifact deleted");
     Ok(StatusCode::NO_CONTENT)
+}
+
+/// Server-sent events for an artifact. Subscribers receive `update` when a new
+/// version is published and `deleted` when the artifact is removed. The stream
+/// sends periodic keepalive comments so proxies do not close idle connections.
+pub async fn artifact_events(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+) -> ApiResult<Response> {
+    let id = parse_id(&id)?;
+    // Confirm the artifact exists; unknown IDs should be 404, not an open stream.
+    state.storage.read_meta(id).await?;
+
+    let rx = state.events.subscribe(id);
+    let stream = BroadcastStream::new(rx).map(|result| {
+        let event = match result {
+            Ok(EventKind::Update(v)) => Event::default()
+                .event("update")
+                .data(format!(r#"{{"version":{v}}}"#)),
+            Ok(EventKind::Deleted) => Event::default().event("deleted").data("{}"),
+            Err(_) => Event::default().event("error").data("event stream lagged"),
+        };
+        Ok::<_, std::convert::Infallible>(event)
+    });
+
+    Ok(Sse::new(stream)
+        .keep_alive(axum::response::sse::KeepAlive::default())
+        .into_response())
 }
 
 /// Public view route. Serves artifact HTML verbatim — no CSP, since artifacts

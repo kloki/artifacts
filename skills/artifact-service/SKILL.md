@@ -114,6 +114,13 @@ curl -sS -X DELETE "$ARTIFACTS_URL/api/artifacts/$ARTIFACT_ID"   # 204, empty bo
 Deletion cannot be undone — confirm with the human before deleting anything you
 did not just create.
 
+## Live updates
+
+`GET /api/artifacts/{id}/events` returns a server-sent event stream. The service
+publishes `update` when a new version is published and `deleted` when the
+artifact is removed. Because artifacts are served verbatim, auto-reload only
+works when the artifact embeds the EventSource snippet from the builder skill.
+
 ## Telling the human where to look
 
 After publishing or updating, state the URL plainly on its own line as the last
@@ -136,6 +143,7 @@ Never present a filesystem path as the way to view an artifact.
 | GET    | `/api/artifacts/{id}` | Metadata               | 200     |
 | GET    | `/api/artifacts`      | List (paginated)       | 200     |
 | DELETE | `/api/artifacts/{id}` | Delete permanently     | 204     |
+| GET    | `/api/artifacts/{id}/events` | Live updates (SSE)     | 200     |
 | GET    | `/a/{id}[?version=N]` | Human-facing view      | 200     |
 | GET    | `/healthz`            | Service health         | 200     |
 

@@ -58,6 +58,7 @@ Metadata travels in query parameters.
 | GET    | `/api/artifacts/{id}` | Metadata                  | 200     |
 | GET    | `/api/artifacts`      | List, newest first        | 200     |
 | DELETE | `/api/artifacts/{id}` | Delete, including history | 204     |
+| GET    | `/api/artifacts/{id}/events` | Live updates (SSE)        | 200     |
 | GET    | `/a/{id}[?version=N]` | Public view               | 200     |
 | GET    | `/`                   | Management dashboard      | 200     |
 | GET    | `/healthz`            | Health check              | 200     |
@@ -108,6 +109,17 @@ its own. Two details worth knowing:
 Editing a title or description is deliberately not offered — `PUT` requires the
 HTML body and would bump the version, so renaming would need a metadata-only
 endpoint that does not exist.
+
+## Live updates
+
+`GET /api/artifacts/{id}/events` streams server-sent events: `update` when a new
+version is published, `deleted` when the artifact is removed. The endpoint is
+under `/api`, so it inherits the same CORS policy.
+
+Because artifacts are served verbatim, open pages do **not** auto-reload unless
+the artifact itself includes the small EventSource snippet shown in the builder
+skills. Pinned historical views (`?version=N`) should ignore `update` events and
+stay on the version they are displaying.
 
 ## Storage
 

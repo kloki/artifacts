@@ -96,6 +96,33 @@ Note: This is a completely optional step. Only perform if necessary or requested
 
 To test/visualize the artifact, use available tools (including other Skills or built-in tools like Playwright or Puppeteer). In general, avoid testing the artifact upfront as it adds latency between the request and when the finished artifact can be seen. Test later, after presenting the artifact, if requested or if issues arise.
 
+## Live updates
+
+If the artifact will be updated in place, add this snippet after bundling so
+viewers see new versions without refreshing manually. It reads the artifact UUID
+from the URL and listens to `/api/artifacts/{id}/events`. Pinned historical
+views (`?version=N`) ignore update events.
+
+```html
+<script>
+  "use strict";
+  (function () {
+    const match = location.pathname.match(/^\/a\/([0-9a-f-]{36})/);
+    if (!match) return;
+    const source = new EventSource("/api/artifacts/" + match[1] + "/events");
+    source.addEventListener("update", function () {
+      if (!location.search.includes("version=")) {
+        location.reload();
+      }
+    });
+    source.addEventListener("deleted", function () {
+      document.body.innerHTML =
+        '<main style="padding:2rem;font-family:system-ui,sans-serif"><h1>Deleted</h1><p>This artifact has been removed.</p></main>';
+    });
+  })();
+</script>
+```
+
 ## Reference
 
 - **shadcn/ui components**: https://ui.shadcn.com/docs/components
