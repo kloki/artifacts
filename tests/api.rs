@@ -83,7 +83,7 @@ async fn create_get_and_view() {
     assert_eq!(created["size_bytes"], html.len());
     assert_eq!(
         created["view_uri"],
-        format!("https://artifacts.example.com/a/{id}")
+        format!("https://artifacts.example.com/a/{id}-my-page")
     );
     // sha256 of the uploaded bytes, lowercase hex.
     assert_eq!(created["sha256"].as_str().unwrap().len(), 64);
@@ -234,6 +234,48 @@ async fn rejects_invalid_input() {
 }
 
 #[tokio::test]
+async fn view_uri_includes_slug_when_title_present() {
+    let dir = TempDir::new().unwrap();
+    let app = test_app(&dir);
+
+    let (_, created) = send_json(
+        &app,
+        post(
+            "/api/artifacts?title=My%20Page%21&description=d",
+            "<h1>x</h1>",
+        ),
+    )
+    .await;
+    let id = created["id"].as_str().unwrap();
+    let uri = created["view_uri"].as_str().unwrap();
+    assert!(uri.contains(&format!("{id}-my-page")));
+}
+
+#[tokio::test]
+async fn view_routing_ignores_cosmetic_slug() {
+    let dir = TempDir::new().unwrap();
+    let app = test_app(&dir);
+    let html = "<h1>x</h1>";
+
+    let (_, created) = send_json(&app, post("/api/artifacts?title=My%20Page", html)).await;
+    let id = created["id"].as_str().unwrap().to_string();
+
+    // Bare UUID still works.
+    let (status, body) = send(&app, get(&format!("/a/{id}"))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, html.as_bytes());
+
+    // UUID-first slug works and the slug text is ignored.
+    let (status, body) = send(&app, get(&format!("/a/{id}-anything-here"))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, html.as_bytes());
+
+    // Non-UUID garbage is still a 404.
+    let (status, _) = send(&app, get("/a/not-a-uuid-and-more")).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
 async fn update_preserves_metadata_unless_supplied() {
     let dir = TempDir::new().unwrap();
     let app = test_app(&dir);
@@ -259,6 +301,145 @@ async fn update_preserves_metadata_unless_supplied() {
     .await;
     assert_eq!(replaced["title"], "Renamed");
     assert_eq!(replaced["description"], "First");
+}
+
+#[tokio::test]
+async fn patch_metadata_without_bumping_version() {
+    let dir = TempDir::new().unwrap();
+    let app = test_app(&dir);
+
+    let created = create(&app, "<p>1</p>").await;
+    let id = created["id"].as_str().unwrap().to_string();
+    let original_sha = created["sha256"].as_str().unwrap();
+
+    let (status, renamed) = send_json(
+        &app,
+        Request::patch(format!("/api/artifacts/{id}?title=Renamed&description="))
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(renamed["title"], "Renamed");
+    assert_eq!(renamed["description"], Value::Null);
+    assert_eq!(renamed["version"], created["version"]);
+    assert_eq!(renamed["sha256"], original_sha);
+    assert!(renamed["updated_at"].as_str().unwrap() >= created["updated_at"].as_str().unwrap());
+
+    let (status, redescribed) = send_json(
+        &app,
+        Request::patch(format!("/api/artifacts/{id}?title=&description=New%20desc"))
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(redescribed["title"], Value::Null);
+    assert_eq!(redescribed["description"], "New desc");
+    assert_eq!(redescribed["version"], created["version"]);
+
+    let (status, json) = send_json(
+        &app,
+        Request::patch(format!("/api/artifacts/{id}"))
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(json["error"], "bad_request");
+
+    let missing = uuid::Uuid::new_v4();
+    let (status, _) = send_json(
+        &app,
+        Request::patch(format!("/api/artifacts/{missing}?title=X"))
+            .body(Body::empty())
+            .unwrap(),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn markdown_artifact_is_served_raw_in_bauhaus_shell() {
+    let dir = TempDir::new().unwrap();
+    let app = test_app(&dir);
+    let md = "# Hello\n\nSome <script>alert(1)</script> & \"text\".";
+
+    let req = Request::post("/api/artifacts?title=Notes&description=d")
+        .header("Content-Type", "text/markdown")
+        .body(Body::from(md.to_string()))
+        .unwrap();
+    let (status, created) = send_json(&app, req).await;
+    assert_eq!(status, StatusCode::CREATED);
+    let id = created["id"].as_str().unwrap().to_string();
+    assert_eq!(created["content_type"], "markdown");
+    assert_eq!(created["size_bytes"], md.len());
+
+    let (status, body) = send(&app, get(&format!("/a/{id}"))).await;
+    assert_eq!(status, StatusCode::OK);
+    let html = String::from_utf8(body).unwrap();
+    assert!(html.contains("Markdown artifact"));
+    assert!(html.contains("<h1>Notes</h1>"));
+    assert!(html.contains("copy raw text"));
+    assert!(html.contains("# Hello"));
+    // Dangerous characters are escaped inside the raw view (Askama uses numeric entities).
+    assert!(html.contains("&#60;script&#62;"));
+    assert!(html.contains("&#38;"));
+}
+
+#[tokio::test]
+async fn markdown_versioning_keeps_type() {
+    let dir = TempDir::new().unwrap();
+    let app = test_app(&dir);
+    let id = create_markdown(&app, "# v1").await;
+
+    let req = Request::put(format!("/api/artifacts/{id}"))
+        .header("Content-Type", "text/markdown")
+        .body(Body::from("# v2".to_string()))
+        .unwrap();
+    let (status, updated) = send_json(&app, req).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(updated["version"], 2);
+    assert_eq!(updated["content_type"], "markdown");
+
+    let (status, body) = send(&app, get(&format!("/a/{id}?version=1"))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(String::from_utf8(body).unwrap().contains("# v1"));
+
+    let (status, body) = send(&app, get(&format!("/a/{id}?version=2"))).await;
+    assert_eq!(status, StatusCode::OK);
+    assert!(String::from_utf8(body).unwrap().contains("# v2"));
+}
+
+#[tokio::test]
+async fn update_rejects_content_type_switch() {
+    let dir = TempDir::new().unwrap();
+    let app = test_app(&dir);
+    let created = create(&app, "<p>1</p>").await;
+    let id = created["id"].as_str().unwrap().to_string();
+    assert_eq!(created["content_type"], "html");
+
+    let req = Request::put(format!("/api/artifacts/{id}"))
+        .header("Content-Type", "text/markdown")
+        .body(Body::from("# md".to_string()))
+        .unwrap();
+    let (status, json) = send_json(&app, req).await;
+    assert_eq!(status, StatusCode::BAD_REQUEST);
+    assert_eq!(json["error"], "bad_request");
+}
+
+async fn create_markdown(app: &Router, md: &str) -> String {
+    let req = Request::post("/api/artifacts?title=Notes")
+        .header("Content-Type", "text/markdown")
+        .body(Body::from(md.to_string()))
+        .unwrap();
+    let (status, json) = send_json(app, req).await;
+    assert_eq!(
+        status,
+        StatusCode::CREATED,
+        "create markdown failed: {json}"
+    );
+    json["id"].as_str().unwrap().to_string()
 }
 
 #[tokio::test]

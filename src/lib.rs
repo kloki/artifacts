@@ -29,6 +29,7 @@ pub fn app(state: Arc<AppState>) -> Router {
             "/artifacts/{id}",
             get(handlers::get_artifact)
                 .put(handlers::update_artifact)
+                .patch(handlers::patch_artifact)
                 .delete(handlers::delete_artifact),
         )
         .route("/artifacts/{id}/events", get(handlers::artifact_events))

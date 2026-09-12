@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
+use askama::Template;
 use axum::{
     Json,
     body::Bytes,
     extract::{Path, Query, State},
-    http::{StatusCode, header},
+    http::{HeaderMap, StatusCode, header},
     response::{
         IntoResponse, Response,
         sse::{Event, Sse},
@@ -17,7 +18,9 @@ use crate::{
     AppState,
     error::AppError,
     events::EventKind,
-    models::{ArtifactResponse, ListParams, ListResponse, Meta, MetaParams, ViewParams},
+    models::{
+        ArtifactResponse, ContentType, ListParams, ListResponse, Meta, MetaParams, ViewParams,
+    },
 };
 
 const DEFAULT_LIMIT: usize = 50;
@@ -26,8 +29,23 @@ const MAX_LIMIT: usize = 200;
 type ApiResult<T> = Result<T, AppError>;
 
 fn respond(state: &AppState, meta: Meta) -> ArtifactResponse {
-    let view_uri = state.config.view_uri(meta.id);
+    let view_uri = state.config.view_uri(meta.id, meta.title.as_deref());
     ArtifactResponse { meta, view_uri }
+}
+
+/// Public view IDs may be a bare UUID (`/a/{uuid}`) or a UUID followed by a
+/// cosmetic slug (`/a/{uuid}-{slug}`). Only the leading UUID is used for
+/// routing, so the human-readable part can change without breaking links.
+fn parse_view_id(raw: &str) -> Result<uuid::Uuid, AppError> {
+    if let Ok(id) = uuid::Uuid::parse_str(raw) {
+        return Ok(id);
+    }
+    if raw.len() > 36 && raw.as_bytes().get(36) == Some(&b'-') {
+        if let Ok(id) = uuid::Uuid::parse_str(&raw[..36]) {
+            return Ok(id);
+        }
+    }
+    Err(AppError::NotFound)
 }
 
 /// Path IDs are parsed by hand so the API can answer 400 while the public view
@@ -45,15 +63,29 @@ fn require_html(body: &Bytes) -> Result<(), AppError> {
     Ok(())
 }
 
+fn content_type_from_headers(headers: &HeaderMap) -> ContentType {
+    match headers
+        .get(header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+    {
+        Some(ct) if ct.starts_with("text/markdown") || ct.starts_with("text/x-markdown") => {
+            ContentType::Markdown
+        }
+        _ => ContentType::Html,
+    }
+}
+
 pub async fn create_artifact(
     State(state): State<Arc<AppState>>,
     Query(params): Query<MetaParams>,
+    headers: HeaderMap,
     body: Bytes,
 ) -> ApiResult<Response> {
     require_html(&body)?;
+    let content_type = content_type_from_headers(&headers);
     let meta = state
         .storage
-        .create(&body, params.title, params.description)
+        .create(&body, content_type, params.title, params.description)
         .await?;
     tracing::info!(id = %meta.id, bytes = meta.size_bytes, "artifact created");
     Ok((StatusCode::CREATED, Json(respond(&state, meta))).into_response())
@@ -63,16 +95,43 @@ pub async fn update_artifact(
     State(state): State<Arc<AppState>>,
     Path(id): Path<String>,
     Query(params): Query<MetaParams>,
+    headers: HeaderMap,
     body: Bytes,
 ) -> ApiResult<Json<ArtifactResponse>> {
     let id = parse_id(&id)?;
     require_html(&body)?;
+    let content_type = content_type_from_headers(&headers);
     let meta = state
         .storage
-        .update(id, &body, params.title, params.description)
+        .update(id, &body, content_type, params.title, params.description)
         .await?;
     state.events.publish(id, EventKind::Update(meta.version));
     tracing::info!(id = %meta.id, version = meta.version, "artifact updated");
+    Ok(Json(respond(&state, meta)))
+}
+
+pub async fn patch_artifact(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Query(params): Query<MetaParams>,
+) -> ApiResult<Json<ArtifactResponse>> {
+    let id = parse_id(&id)?;
+    if params.title.is_none() && params.description.is_none() {
+        return Err(AppError::BadRequest(
+            "at least one of title or description must be supplied".to_string(),
+        ));
+    }
+    let title = params
+        .title
+        .map(|t| if t.is_empty() { None } else { Some(t) });
+    let description = params
+        .description
+        .map(|d| if d.is_empty() { None } else { Some(d) });
+    let meta = state
+        .storage
+        .update_metadata(id, title, description)
+        .await?;
+    tracing::info!(id = %meta.id, "artifact metadata updated");
     Ok(Json(respond(&state, meta)))
 }
 
@@ -149,8 +208,15 @@ pub async fn view_artifact(
     Path(id): Path<String>,
     Query(params): Query<ViewParams>,
 ) -> ApiResult<Response> {
-    let id = Uuid::parse_str(&id).map_err(|_| AppError::NotFound)?;
-    let html = state.storage.read_html(id, params.version).await?;
+    let id = parse_view_id(&id)?;
+    let (content, meta) = state.storage.read_content(id, params.version).await?;
+
+    let body = match meta.content_type {
+        ContentType::Html => content,
+        ContentType::Markdown => {
+            wrap_markdown(meta.title.as_deref(), meta.description.as_deref(), &content)
+        }
+    };
 
     Ok((
         [
@@ -159,20 +225,46 @@ pub async fn view_artifact(
             (header::REFERRER_POLICY, "no-referrer"),
             (header::CACHE_CONTROL, "no-cache"),
         ],
-        html,
+        body,
     )
         .into_response())
 }
 
-/// The management dashboard. Embedded at compile time so the binary stays
-/// self-contained — there is no static directory to ship or mount alongside it.
+/// Askama template for the management dashboard.
+#[derive(Template)]
+#[template(path = "dashboard.html")]
+struct DashboardTemplate;
+
+/// Askama template for the Markdown artifact view.
+#[derive(Template)]
+#[template(path = "markdown.html")]
+struct MarkdownTemplate<'a> {
+    title: &'a str,
+    description: Option<&'a str>,
+    raw: &'a str,
+}
+
+/// Renders a raw Markdown artifact as a self-contained Bauhaus-styled page
+/// that shows the original text and offers a copy-to-clipboard button.
+fn wrap_markdown(title: Option<&str>, description: Option<&str>, raw: &[u8]) -> Vec<u8> {
+    let template = MarkdownTemplate {
+        title: title.unwrap_or("untitled"),
+        description,
+        raw: std::str::from_utf8(raw).unwrap_or_default(),
+    };
+    template.render().unwrap_or_default().into_bytes()
+}
+
+/// The management dashboard. Rendered from an Askama template and embedded at
+/// compile time so the binary stays self-contained.
 pub async fn dashboard() -> Response {
+    let page = DashboardTemplate.render().unwrap_or_default();
     (
         [
             (header::CONTENT_TYPE, "text/html; charset=utf-8"),
             (header::CACHE_CONTROL, "no-cache"),
         ],
-        include_str!("dashboard.html"),
+        page,
     )
         .into_response()
 }
